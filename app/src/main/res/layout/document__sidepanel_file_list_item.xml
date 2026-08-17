@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/document__sidepanel_file_list_item__title"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?android:attr/selectableItemBackground"
+    android:clickable="true"
+    android:ellipsize="middle"
+    android:focusable="true"
+    android:padding="16dp"
+    android:singleLine="true"
+    android:textSize="14sp" />

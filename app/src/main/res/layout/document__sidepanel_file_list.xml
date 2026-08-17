@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+/*#######################################################
+ *
+ *   Maintained 2017-2025 by Gregor Santner <gsantner AT mailbox DOT org>
+ *
+ *   License of this file: Apache 2.0
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+#########################################################*/
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/document__sidepanel_file_list__root"
+    android:layout_width="200dp"
+    android:layout_height="match_parent"
+    android:layout_gravity="start"
+    android:background="@color/background"
+    android:elevation="8dp"
+    android:orientation="vertical">
+
+    <!-- Top bar: arrow to close the panel -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/primary"
+        android:gravity="center_vertical"
+        android:minHeight="48dp"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/document__sidepanel_file_list__close"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/close"
+            android:padding="12dp"
+            android:src="@drawable/ic_baseline_keyboard_double_arrow_left_24"
+            app:tint="@color/white" />
+
+        <TextView
+            android:id="@+id/document__sidepanel_file_list__title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="middle"
+            android:singleLine="true"
+            android:textColor="@color/white" />
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/document__sidepanel_file_list__recycler"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+</LinearLayout>
