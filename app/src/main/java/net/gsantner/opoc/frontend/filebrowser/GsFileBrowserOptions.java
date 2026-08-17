@@ -30,6 +30,22 @@ import java.util.Map;
 @SuppressWarnings({"unused", "WeakerAccess"})
 public class GsFileBrowserOptions {
 
+    // How the current folder's contents are displayed
+    public enum FileBrowserViewMode {
+        LIST, DETAILED_LIST, GRID;
+
+        public static FileBrowserViewMode fromString(final String value) {
+            if (value != null) {
+                for (final FileBrowserViewMode mode : values()) {
+                    if (mode.name().equals(value)) {
+                        return mode;
+                    }
+                }
+            }
+            return DETAILED_LIST;
+        }
+    }
+
     public interface SelectionListener {
         void onFsViewerSelected(final String request, final File file, final Integer lineNumber);
 
@@ -80,6 +96,10 @@ public class GsFileBrowserOptions {
                 dismissAfterCallback = true;
 
         public GsFileUtils.SortOrder sortOrder = new GsFileUtils.SortOrder();
+
+        public FileBrowserViewMode viewMode = FileBrowserViewMode.DETAILED_LIST;
+        public boolean viewModeIsFolderLocal = false;
+        public int gridColumns = 3;
 
         public GsCallback.b2<Context, File> fileOverallFilter = (context, file) -> true;
 
