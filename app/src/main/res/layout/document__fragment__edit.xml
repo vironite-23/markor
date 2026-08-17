@@ -8,106 +8,130 @@
  *
 #########################################################*/
 -->
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/document__fragment__edit__drawer_layout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@android:color/transparent"
-    tools:context="net.gsantner.markor.activity.DocumentEditAndViewFragment"
-    tools:showIn="@layout/document__activity">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical">
-
-        <!-- for text search view -->
-        <FrameLayout
-            android:id="@+id/topViewContainer"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="2.5dp" />
-
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1">
-
-            <net.gsantner.markor.frontend.DraggableScrollbarScrollView
-                android:id="@+id/document__fragment__edit__content_editor__scrolling_parent"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@android:color/transparent"
-                android:fillViewport="true">
-
-                <LinearLayout
-                    android:id="@+id/document__fragment__edit__editor_holder"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:baselineAligned="false"
-                    android:background="@color/background"
-                    android:clickable="true"
-                    android:orientation="horizontal">
-
-                    <net.gsantner.markor.frontend.textview.LineNumbersView
-                        android:id="@+id/document__fragment__edit__line_numbers_view"
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent" />
-
-                    <net.gsantner.markor.frontend.textview.HighlightingEditor
-                        android:id="@+id/document__fragment__edit__highlighting_editor"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:alpha="0"
-                        android:background="@color/background"
-                        android:gravity="top"
-                        android:imeOptions="flagNoExtractUi"
-                        android:inputType="textMultiLine|textCapSentences"
-                        android:isScrollContainer="false"
-                        android:minHeight="1dp"
-                        android:nestedScrollingEnabled="false"
-                        android:overScrollMode="never"
-                        android:paddingLeft="@dimen/activity_horizontal_margin"
-                        android:paddingTop="@dimen/activity_vertical_margin"
-                        android:paddingRight="@dimen/activity_horizontal_margin"
-                        android:paddingBottom="@dimen/editor_bottom_margin"
-                        android:scrollbars="none"
-                        android:scrollHorizontally="false"
-                        android:textCursorDrawable="@drawable/cursor_accent" />
-                </LinearLayout>
-            </net.gsantner.markor.frontend.DraggableScrollbarScrollView>
-
-            <ViewStub
-                android:id="@+id/document__fragment_webview_stub"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout="@layout/document__fragment_view" />
-        </FrameLayout>
-
-        <net.gsantner.opoc.frontend.GsHorizontalScrollView
-            android:id="@+id/document__fragment__edit__text_actions_bar__scrolling_parent"
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/text_actions_bar_height"
-            android:background="@color/background"
-            android:elevation="4dp"
-            android:paddingTop="4dp"
-            android:scrollbars="none"
-            android:translationZ="4dp">
-
-            <LinearLayout
-                android:id="@+id/document__fragment__edit__text_actions_bar"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:background="@color/background"
-                android:orientation="horizontal" />
-        </net.gsantner.opoc.frontend.GsHorizontalScrollView>
-    </LinearLayout>
+    android:layout_height="match_parent">
 
     <FrameLayout
-        android:id="@+id/document__fragment_fullscreen_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/background"
-        android:visibility="gone" />
-</FrameLayout>
+        android:background="@android:color/transparent"
+        tools:context="net.gsantner.markor.activity.DocumentEditAndViewFragment"
+        tools:showIn="@layout/document__activity">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <!-- for text search view -->
+            <FrameLayout
+                android:id="@+id/topViewContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="2.5dp" />
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+
+                <net.gsantner.markor.frontend.DraggableScrollbarScrollView
+                    android:id="@+id/document__fragment__edit__content_editor__scrolling_parent"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@android:color/transparent"
+                    android:fillViewport="true">
+
+                    <LinearLayout
+                        android:id="@+id/document__fragment__edit__editor_holder"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@color/background"
+                        android:baselineAligned="false"
+                        android:clickable="true"
+                        android:orientation="horizontal">
+
+                        <net.gsantner.markor.frontend.textview.LineNumbersView
+                            android:id="@+id/document__fragment__edit__line_numbers_view"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent" />
+
+                        <net.gsantner.markor.frontend.textview.HighlightingEditor
+                            android:id="@+id/document__fragment__edit__highlighting_editor"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:alpha="0"
+                            android:background="@color/background"
+                            android:gravity="top"
+                            android:imeOptions="flagNoExtractUi"
+                            android:inputType="textMultiLine|textCapSentences"
+                            android:isScrollContainer="false"
+                            android:minHeight="1dp"
+                            android:nestedScrollingEnabled="false"
+                            android:overScrollMode="never"
+                            android:paddingLeft="@dimen/activity_horizontal_margin"
+                            android:paddingTop="@dimen/activity_vertical_margin"
+                            android:paddingRight="@dimen/activity_horizontal_margin"
+                            android:paddingBottom="@dimen/editor_bottom_margin"
+                            android:scrollbars="none"
+                            android:scrollHorizontally="false"
+                            android:textCursorDrawable="@drawable/cursor_accent" />
+                    </LinearLayout>
+                </net.gsantner.markor.frontend.DraggableScrollbarScrollView>
+
+                <ViewStub
+                    android:id="@+id/document__fragment_webview_stub"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout="@layout/document__fragment_view" />
+            </FrameLayout>
+
+            <net.gsantner.opoc.frontend.GsHorizontalScrollView
+                android:id="@+id/document__fragment__edit__text_actions_bar__scrolling_parent"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/text_actions_bar_height"
+                android:background="@color/background"
+                android:elevation="4dp"
+                android:paddingTop="4dp"
+                android:scrollbars="none"
+                android:translationZ="4dp">
+
+                <LinearLayout
+                    android:id="@+id/document__fragment__edit__text_actions_bar"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:background="@color/background"
+                    android:orientation="horizontal" />
+            </net.gsantner.opoc.frontend.GsHorizontalScrollView>
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/document__fragment_fullscreen_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/background"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <!-- Item 5: swipe-left panel - read-only viewer for another text file in the same folder.
+         Kept open/closed and scrolled independently of the editor; see DocumentEditAndViewFragment
+         for the logic that persists which file + scroll position per folder. -->
+    <include
+        layout="@layout/document__sidepanel_text_viewer"
+        android:layout_width="400dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end" />
+
+    <!-- Item 6: swipe-right panel - list of files in the same folder as the document being
+         edited. Width is set to half the editor's width at runtime (see setupSidePanel()). -->
+    <include
+        layout="@layout/document__sidepanel_file_list"
+        android:layout_width="280dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start" />
+
+</androidx.drawerlayout.widget.DrawerLayout>
