@@ -335,6 +335,16 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="white">White</string>
     <string name="view">View</string>
     <string name="view_mode">View Mode</string>
+    <string name="grid">Grid</string>
+    <string name="detailed_list">Detailed list</string>
+    <string name="grid_columns">Grid columns</string>
+    <string name="grid_cover_filename">Cover image filename</string>
+    <string name="grid_cover_filename_description">If a folder contains an image with this exact filename, it is shown as the folder\'s cover in grid view</string>
+    <string name="grid_cover_width_dp">Cover width (dp)</string>
+    <string name="grid_cover_height_dp">Cover height (dp)</string>
+    <string name="select_text">Select text</string>
+    <string name="side_panel_no_other_text_files">No other text files in this folder</string>
+    <string name="side_panel_search_not_found">Not found</string>
     <string name="edit_mode">Edit Mode</string>
     <string name="mount_storage">Mount storage</string>
     <string name="application_needs_access_to_storage_mount_it">Permission is required to access this storage. Mount the storage to give access. Confirm this dialog to get a popup. Select the storage there and press select.</string>
@@ -425,8 +435,8 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="line_based_search">Line based search</string>
     <string name="no_results">No results</string>
     <string name="bad_pattern">Invalid pattern</string>
-    <string name="toggle_find_replace">Toggle Find/Replace</string>
     <string name="new_line">New Line</string>
+    <string name="toggle_find_replace">Toggle Find/Replace</string>
     <string name="match_case">Match Case</string>
     <string name="match_whole_word">Match Whole Word</string>
     <string name="use_regular_expression">Use Regular Expression</string>
@@ -514,7 +524,5 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="capitalize_words">Capitalize Words (a note→A Note)</string>
     <string name="capitalize_sentences">Capitalize Sentences (a note→A note)</string>
     <string name="use_tab_to_indent">Indent lines with TAB key</string>
-    <string name="static_cursor">Static cursor</string>
-    <string name="disable_cursor_blinking">Disable cursor blinking</string>
     <string name="folder_local">Folder local</string>
 </resources>
