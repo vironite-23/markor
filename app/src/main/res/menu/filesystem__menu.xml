@@ -1,164 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?><!--
 /*#######################################################
  *
  *   Maintained 2017-2025 by Gregor Santner <gsantner AT mailbox DOT org>
- *
  *   License of this file: Apache 2.0
  *     https://www.apache.org/licenses/LICENSE-2.0
  *
 #########################################################*/
-apply plugin: 'com.android.application'
-if (enable_plugin_kotlin) {
-    apply plugin: 'kotlin-android'
-    apply plugin: 'kotlin-android-extensions'
-    apply plugin: 'kotlin-kapt'
-}
+-->
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="AlwaysShowAction">
 
-rootProject.ext.version_minSdk = 18
+    <item
+        android:id="@+id/action_favourite"
+        android:icon="@drawable/ic_star_border_black_24dp"
+        android:title="@string/favourite"
+        android:visible="false"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/action_favourite_remove"
+        android:icon="@drawable/ic_star_black_24dp"
+        android:title="@string/favourite"
+        android:visible="false"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/action_fs_copy_to_clipboard"
+        android:icon="@drawable/ic_content_copy_black_24dp"
+        android:title="@string/clipboard"
+        android:visible="false"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_rename_selected_item"
+        android:icon="@drawable/ic_gs_rename_black_24dp"
+        android:title="@string/rename"
+        android:visible="false"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/action_info_selected_item"
+        android:icon="@drawable/ic_info_black_24dp"
+        android:title="@string/details"
+        android:visible="false"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/action_delete_selected_items"
+        android:icon="@drawable/ic_delete_black_24dp"
+        android:title="@string/delete"
+        android:visible="false"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/action_move_selected_items"
+        android:icon="@drawable/ic_gs_file_move_black_24dp"
+        android:title="@string/move"
+        android:visible="false"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_copy_selected_items"
+        android:icon="@drawable/ic_baseline_file_copy_24"
+        android:title="@string/copy"
+        android:visible="false"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_create_shortcut"
+        android:icon="@drawable/ic_widgets_black_24dp"
+        android:title="@string/create_shortcut"
+        android:visible="false"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_share_files"
+        android:icon="@drawable/ic_share_black_24dp"
+        android:title="@string/share"
+        android:visible="false"
+        app:showAsAction="never" />
 
-// https://github.com/vsch/flexmark-java/releases
-ext.version_library_flexmark = "0.42.14"
+    <item
+        android:id="@+id/action_go_to"
+        android:layout_width="match_parent"
+        android:icon="@drawable/ic_folder_white_24dp"
+        android:title="@string/go_to"
+        app:showAsAction="always" />
 
-android {
-    buildToolsVersion rootProject.ext.version_buildTools
-    compileSdkVersion rootProject.ext.version_compileSdk
+    <item
+        android:id="@+id/action_sort"
+        android:layout_width="match_parent"
+        android:icon="@drawable/ic_sort_black_24dp"
+        android:title="@string/sort_by"
+        app:showAsAction="always" />
 
-    defaultConfig {
-        resValue "string", "manifest_package_id", "net.gsantner.markor"
-        applicationId "net.gsantner.markor"
-        versionName "2.16.2"
-        versionCode 163
+    <item
+        android:id="@+id/action_view_mode"
+        android:layout_width="match_parent"
+        android:icon="@drawable/ic_view_module_black_24dp"
+        android:title="@string/view_mode"
+        app:showAsAction="always" />
 
-        multiDexEnabled true
-        minSdkVersion rootProject.ext.version_minSdk
-        targetSdkVersion rootProject.ext.version_compileSdk
-        buildConfigField "boolean", "IS_TEST_BUILD", "false"
-        buildConfigField "boolean", "IS_GPLAY_BUILD", "false"
-        buildConfigField "String[]", "DETECTED_ANDROID_LOCALES", "${findUsedAndroidLocales()}"
-        buildConfigField "String", "BUILD_DATE", "\"${getBuildDate()}\""
-        buildConfigField "String", "GITHASH", "\"${getGitHash}\""
-        buildConfigField "String", "GITMSG", "\"${getGitLastCommitMessage}\""
-        setProperty("archivesBaseName", applicationId + "-v" + versionCode + "-" + versionName)
-    }
-
-    flavorDimensions "default"
-    productFlavors {
-        flavorAtest {
-            applicationId "net.gsantner.markor_test"
-            versionCode = Integer.parseInt(new Date().format('yyMMdd'))
-            versionName = defaultConfig.versionName + "-" + new Date().format('HHmm')
-            buildConfigField "boolean", "IS_TEST_BUILD", "true"
-        }
-        flavorDefault {
-        }
-        flavorGplay {
-            buildConfigField "boolean", "IS_GPLAY_BUILD", "true"
-        }
-    }
-
-    sourceSets {
-        main { assets.srcDirs = ['src/main/assets'] }
-        if (enable_plugin_kotlin) {
-            main.java.srcDirs += 'src/main/kotlin'
-        }
-        main.java.srcDirs += 'thirdparty/java'
-        main.res.srcDirs += 'thirdparty/res'
-        main.assets.srcDirs += 'thirdparty/assets'
-    }
-
-    buildTypes {
-        release {
-            minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-        }
-    }
-    packagingOptions {
-        resources {
-            excludes += ['META-INF/LICENSE-LGPL-2.1.txt', 'META-INF/LICENSE-LGPL-3.txt', 'META-INF/LICENSE-W3C-TEST']
-        }
-    }
-
-
-    compileOptions {
-        encoding = 'UTF-8'
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-    namespace 'net.gsantner.markor'
-    lint {
-        abortOnError false
-        disable 'MissingTranslation', 'InvalidPackage', 'ObsoleteLintCustomCheck', 'DefaultLocale', 'UnusedAttribute', 'VectorRaster', 'InflateParams', 'IconLocation', 'UnusedResources', 'TypographyEllipsis'
-    }
-
-}
-
-dependencies {
-    // Testing
-    testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.assertj:assertj-core:3.13.1'
-
-    // Android standard libs
-    implementation "androidx.multidex:multidex:2.0.1"
-    implementation 'androidx.appcompat:appcompat:1.4.2'
-    implementation 'com.google.android.material:material:1.6.1'
-    implementation 'androidx.legacy:legacy-support-v4:1.0.0'
-    implementation 'androidx.recyclerview:recyclerview:1.2.1'
-    implementation 'androidx.drawerlayout:drawerlayout:1.1.1'
-    implementation 'androidx.preference:preference:1.2.0'
-    implementation 'androidx.legacy:legacy-preference-v14:1.0.0'
-    implementation 'androidx.browser:browser:1.4.0'
-
-    // Markdown convertor (Flexmark)
-    implementation "com.vladsch.flexmark:flexmark:${version_library_flexmark}"
-    implementation "com.vladsch.flexmark:flexmark-util:${version_library_flexmark}"
-    implementation "com.vladsch.flexmark:flexmark-ext-emoji:${version_library_flexmark}"
-    implementation "com.vladsch.flexmark:flexmark-ext-gfm-tasklist:${version_library_flexmark}"
-    implementation "com.vladsch.flexmark:flexmark-ext-superscript:${version_library_flexmark}"
-    implementation "com.vladsch.flexmark:flexmark-ext-autolink:${version_library_flexmark}"
-    implementation "com.vladsch.flexmark:flexmark-ext-toc:${version_library_flexmark}"
-    implementation "com.vladsch.flexmark:flexmark-ext-tables:${version_library_flexmark}"
-    implementation "com.vladsch.flexmark:flexmark-ext-jekyll-front-matter:${version_library_flexmark}"
-    implementation "com.vladsch.flexmark:flexmark-ext-jekyll-tag:${version_library_flexmark}"
-    implementation "com.vladsch.flexmark:flexmark-ext-anchorlink:${version_library_flexmark}"
-    implementation "com.vladsch.flexmark:flexmark-ext-gfm-strikethrough:${version_library_flexmark}"
-    implementation "com.vladsch.flexmark:flexmark-ext-yaml-front-matter:${version_library_flexmark}"
-    implementation "com.vladsch.flexmark:flexmark-ext-footnotes:${version_library_flexmark}"
-    implementation "com.vladsch.flexmark:flexmark-ext-gitlab:${version_library_flexmark}"
-    implementation "com.vladsch.flexmark:flexmark-ext-typographic:${version_library_flexmark}"
-    implementation "com.vladsch.flexmark:flexmark-ext-admonition:${version_library_flexmark}"
-
-    // csv support
-    // https://opencsv.sourceforge.net/licenses.html License: Apache2
-    // opencsv 3.10 was the last java-6 version
-    // opencsv 5.7.1' for java-8 may have dependencies that are not backward compatibility with android-4.1
-    //noinspection GradleDependency
-    implementation('com.opencsv:opencsv:3.10') {
-        // do not get transitive 'commons-beanutils:commons-beanutils as the opencsv bean <-> csv feature is not used
-        exclude group: 'commons-beanutils', module: 'commons-beanutils'
-    }
-
-    // UI libs
-    implementation 'com.github.Pixplicity:gene-rate:v1.1.8'
-    implementation 'com.github.AppIntro:AppIntro:6.2.0'
-    implementation 'com.github.mertakdut:EpubParser:1.0.95'
-    implementation 'com.github.martin-stone:hsv-alpha-color-picker-android:3.1.0'
-
-    // Tool libraries
-    //noinspection AnnotationProcessorOnCompilePath
-    implementation 'commons-io:commons-io:2.7'
-    if (enable_plugin_kotlin) {
-        implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${version_plugin_kotlin}"
-    }
-
-    // https://mvnrepository.com/artifact/com.google.code.gson/gson
-    implementation 'com.google.code.gson:gson:2.10.1'
-
-    // Processors
-    def anpros = []
-    for (anpro in anpros) {
-        if (enable_plugin_kotlin) {
-            kapt anpro
-        } else {
-            annotationProcessor anpro
-        }
-    }
-}
+    <item
+        android:id="@+id/action_search"
+        android:icon="@drawable/ic_search_black_24dp"
+        android:title="@string/search"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/action_import"
+        android:icon="@drawable/ic_file_white_24dp"
+        android:title="@string/import_from_device"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_check_all"
+        android:icon="@drawable/ic_check_circle_24dp"
+        android:title="@string/select_all"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_clear_selection"
+        android:icon="@drawable/ic_baseline_clear_24"
+        android:title="@string/clear_selection"
+        app:showAsAction="never" />
+</menu>
