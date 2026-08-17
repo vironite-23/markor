@@ -25,7 +25,7 @@ android {
     defaultConfig {
         resValue "string", "manifest_package_id", "net.gsantner.markor"
         applicationId "net.gsantner.markor"
-        versionName "2.16.1"
+        versionName "2.16.2"
         versionCode 163
 
         multiDexEnabled true
@@ -102,6 +102,7 @@ dependencies {
     implementation 'com.google.android.material:material:1.6.1'
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
     implementation 'androidx.recyclerview:recyclerview:1.2.1'
+    implementation 'androidx.drawerlayout:drawerlayout:1.1.1'
     implementation 'androidx.preference:preference:1.2.0'
     implementation 'androidx.legacy:legacy-preference-v14:1.0.0'
     implementation 'androidx.browser:browser:1.4.0'
