@@ -75,7 +75,7 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
     //########################
     //## Static
     //########################
-    public static final String FRAGMENT_TAG = "FilesystemViewerFragment";
+    // public static final String FRAGMENT_TAG = "FilesystemViewerFragment";
 
     public static GsFileBrowserFragment newInstance() {
         return new GsFileBrowserFragment();
@@ -165,21 +165,6 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
         }
         _dopt.listener = this;
         checkOptions();
-    }
-
-    public void onClicked(View view) {
-        switch (view.getId()) {
-            case R.id.ui__filesystem_dialog__button_ok:
-            case R.id.ui__filesystem_dialog__home: {
-                _filesystemViewerAdapter.onClick(view);
-                break;
-            }
-            case R.id.ui__filesystem_dialog__button_cancel: {
-                onFsViewerCancel(_dopt.requestId);
-                break;
-            }
-
-        }
     }
 
     @Override
@@ -716,6 +701,7 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
     /**
      * Show a dropdown (PopupMenu) anchored to the toolbar's view-mode action item, letting the
      * user pick List / Detailed list / Grid, and (when Grid is selected) the number of columns.
+     * Also offers a "folder local" toggle, mirroring the sort dialog's global/per-folder scope.
      */
     private void showViewModeDropdown() {
         final Activity activity = getActivity();

@@ -11,9 +11,6 @@ package net.gsantner.opoc.frontend.filebrowser;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.FileObserver;
@@ -107,15 +104,11 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
     private final Stack<File> _backStack = new Stack<>();
     private final int _userId = getUserId();
     private long _prevModSum = 0;
-
     private static final int FOLDER_OBSERVER_MASK =
             FileObserver.CREATE | FileObserver.DELETE | FileObserver.MOVED_FROM
                     | FileObserver.MOVED_TO | FileObserver.MODIFY;
     private FileObserver _folderObserver;
     private final Runnable _folderReloadDebounced = TextViewUtils.makeDebounced(300, this::reloadCurrentFolder);
-
-    // Small in-memory cache for grid-view folder cover images, keyed by "path:mtime:wxh"
-    private static final LruCache<String, Bitmap> _coverImageCache = new LruCache<>(60);
 
     //########################
     //## Methods
@@ -187,6 +180,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         _virtualMapping.put(VIRTUAL_STORAGE_FAVOURITE, VIRTUAL_STORAGE_FAVOURITE);
 
         _virtualMapping.putAll(_dopt.storageMaps);
+
     }
 
     @NonNull
@@ -259,7 +253,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                 }
                 holder.description.setTextColor(ContextCompat.getColor(_context, _dopt.secondaryTextColor));
             } else {
-                holder.description.setText("");
+                holder.description.setText(""); // Avoid stale text on a recycled view leaking into content descriptions
             }
             holder.description.setVisibility(showDescription ? View.VISIBLE : View.GONE);
         }
@@ -283,7 +277,8 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             holder.image.setColorFilter(FAVOURITE_COLOR);
         }
 
-        // Grid view: cover image handling
+        // Grid view: if this is a real (non-virtual) folder containing a cover image
+        // (filename configurable in settings), show that image instead of the folder icon.
         applyGridCoverImageIfAny(holder, file, isGoUp, isVirtual, isFile);
 
         // Some extras
@@ -298,6 +293,10 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             Toast.makeText(_context, displayFile.getAbsolutePath(), Toast.LENGTH_SHORT).show();
             return true;
         });
+        // Bugfix: setOnLongClickListener makes the ImageView consume the whole touch sequence
+        // (needed to detect the long-press), which silently swallowed ordinary taps on the icon
+        // too - so tapping it never reached itemRoot's click handler that opens the folder.
+        // Most noticeable in grid view, where the icon/cover is the main tap target.
         holder.image.setOnClickListener(view -> onClick(holder.itemRoot));
 
         holder.itemRoot.setTag(new TagContainer(displayFile, position));
@@ -313,19 +312,22 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         reloadCurrentFolder();
     }
 
-    @Override
-    public void onDetachedFromRecyclerView(@NonNull final RecyclerView view) {
-        stopFolderObserver();
-        super.onDetachedFromRecyclerView(view);
-    }
-
     /**
-     * Call after swapping the RecyclerView's LayoutManager at runtime (e.g. switching between list and grid mode).
+     * Call after swapping the RecyclerView's LayoutManager at runtime (e.g. switching between
+     * list and grid view mode) so scroll-state tracking (save/restore/scrollTo) keeps pointing
+     * at the LayoutManager instance that is actually attached.
+     * GridLayoutManager extends LinearLayoutManager, so this covers both.
      */
     public void onLayoutManagerChanged() {
         if (_recyclerView != null && _recyclerView.getLayoutManager() instanceof LinearLayoutManager) {
             _layoutManager = (LinearLayoutManager) _recyclerView.getLayoutManager();
         }
+    }
+
+    @Override
+    public void onDetachedFromRecyclerView(@NonNull final RecyclerView view) {
+        stopFolderObserver();
+        super.onDetachedFromRecyclerView(view);
     }
 
     private void rebindFolderObserver() {
@@ -424,6 +426,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         }
     }
 
+    // Prevents view flicker - https://stackoverflow.com/a/32488059
     @Override
     public long getItemId(final int position) {
         final File f = _adapterDataFiltered.get(position);
@@ -472,17 +475,21 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         final TagContainer data = (TagContainer) view.getTag();
 
         if (!_currentSelection.isEmpty()) {
+            // Blink in multi-select
             GsContextUtils.blinkView(view);
         }
 
         switch (view.getId()) {
             case R.id.opoc_filesystem_item__root: {
+                // A own item was clicked
                 if (data.file != null) {
                     if (areItemsSelected()) {
+                        // There are 1 or more items selected yet
                         if (!toggleSelection(data) && data.file.isDirectory()) {
                             loadFolder(data.file, null);
                         }
                     } else {
+                        // No pre-selection
                         if (data.file.isDirectory() || _virtualMapping.containsKey(data.file)) {
                             loadFolder(data.file, data.file.equals(_goUpFile) ? _currentFolder : null);
                         } else if (data.file.isFile()) {
@@ -564,14 +571,18 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         boolean clickHandled = false;
         if (data.file != null && _currentFolder != null && !data.file.equals(_goUpFile)) {
             if (_currentSelection.contains(data.file)) {
+                // Single selection
                 _currentSelection.remove(data.file);
                 clickHandled = true;
             } else if (_dopt.doSelectMultiple) {
+                // Multi selection
                 if (_dopt.doSelectFile && !data.file.isDirectory()) {
+                    // Multi selection - file
                     _currentSelection.add(data.file);
                     clickHandled = true;
                 }
                 if (_dopt.doSelectFolder && data.file.isDirectory()) {
+                    // Multi selection - folder
                     _currentSelection.add(data.file);
                     clickHandled = true;
                 }
@@ -649,6 +660,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         return null;
     }
 
+    // Switch to folder and show the file
     public void showFile(final File file) {
         if (file == null || !file.exists() || _recyclerView == null) {
             return;
@@ -676,6 +688,11 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         }
     }
 
+    /**
+     * Scroll to a file in current folder and flash
+     *
+     * @param file File to blink
+     */
     public boolean scrollToAndFlash(final File file) {
         final int pos = _adapterDataFiltered.indexOf(file);
         if (pos >= 0 && _layoutManager != null) {
@@ -695,8 +712,22 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
 
     private static final ExecutorService executorService = new ThreadPoolExecutor(0, 3, 60, TimeUnit.SECONDS, new SynchronousQueue<>());
 
+    // Small in-memory cache for grid-view folder cover images, keyed by "path:mtime:wxh"
+    // so a changed/replaced cover file or a settings size change invalidates old cache entries.
+    private static final LruCache<String, Bitmap> _coverImageCache = new LruCache<>(60);
+
+    /**
+     * Grid view only: if {@code folder} is a real, non-virtual, non-"go up" directory containing
+     * a cover image file (name configurable via {@link AppSettings#getGridCoverImageFilename()}),
+     * decode and show it at the configured size instead of the default folder icon.
+     * <p>
+     * Always resets the ImageView to its default (non-cover) size/icon first, since RecyclerView
+     * recycles views and a previous bind may have left behind a custom size or a cover bitmap
+     * that belongs to a different item.
+     */
     private void applyGridCoverImageIfAny(final FilesystemViewerViewHolder holder, final File folder,
-                                          final boolean isGoUp, final boolean isVirtual, final boolean isFile) {
+                                           final boolean isGoUp, final boolean isVirtual, final boolean isFile) {
+        // Reset any custom size from a previous (recycled) bind back to the layout default
         final ViewGroup.LayoutParams lp = holder.image.getLayoutParams();
         if (lp != null && (lp.width != holder.defaultImageWidth || lp.height != holder.defaultImageHeight)) {
             lp.width = holder.defaultImageWidth;
@@ -711,6 +742,8 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
 
         final AppSettings settings = AppSettings.get(_context);
         final File coverFile = new File(folder, settings.getGridCoverImageFilename());
+        // Guard token: an async decode result is only applied if the holder is still bound to
+        // this exact cover path when it completes (prevents stale results on a recycled view).
         holder.image.setTag(coverFile.getAbsolutePath());
 
         if (!coverFile.isFile()) {
@@ -741,6 +774,8 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                 });
             });
         } catch (RejectedExecutionException ignored) {
+            // Pool momentarily full - the icon simply stays as the default folder icon
+            // until this row is bound again (e.g. on the next scroll pass).
         }
     }
 
@@ -766,6 +801,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             _folderScrollMap.put(_currentFolder, _layoutManager.onSaveInstanceState());
         }
 
+        // Update current folder
         if (GO_BACK_SIGNIFIER == folder) {
             _currentFolder = _backStack.pop();
         } else {
@@ -792,21 +828,24 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
 
             try {
                 executorService.execute(() -> _loadFolder(folderChanged, toShow));
-            } catch (RejectedExecutionException err) {
+            } catch (RejectedExecutionException err) { // during exit
                 Log.d(GsFileBrowserListAdapter.class.getName(), err.toString());
             }
         }
     }
 
+    // This function is not called on the main thread
     private synchronized void _loadFolder(final boolean folderChanged, final @Nullable File toShow) {
 
         final List<File> newData = new ArrayList<>();
 
+        // Make sure /storage/emulated/0 is browsable, even though filesystem says it's not accessible
         if (_currentFolder.equals(new File("/"))) {
             newData.add(VIRTUAL_STORAGE_ROOT);
         } else if (_currentFolder.equals(VIRTUAL_STORAGE_ROOT)) {
             newData.addAll(_virtualMapping.keySet());
 
+            // SD Card and other external storage directories that are also not listable
             for (final Pair<File, String> p : GsContextUtils.instance.getAppDataPublicDirs(_context, false, true, false)) {
                 File f = p.first;
                 while (f.getParentFile() != null && !f.getParentFile().getName().equals("storage")) {
@@ -831,10 +870,12 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         GsCollectionUtils.keepIf(newData, this::accept);
         GsCollectionUtils.deduplicate(newData);
 
+        // Don't sort recent or virtual root items - use the default order
         if (isCurrentFolderSortable()) {
             GsFileUtils.sortFiles(newData, _dopt.sortOrder);
         }
 
+        // Testing if modtimes have changed (modtimes generally only increase)
         final long modSum = GsCollectionUtils.accumulate(newData, (f, s) -> s + f.lastModified(), 0L);
         final boolean modSumChanged = modSum != _prevModSum;
 
@@ -845,6 +886,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             _filter._filter(newData, filteredData);
 
             _recyclerView.post(() -> {
+                // Modify all these values in the UI thread
                 _goUpFile = goUp;
                 _adapterData.clear();
                 _adapterDataFiltered.clear();
@@ -861,6 +903,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                     _fileIdMap.clear();
                 }
 
+                // TODO - add logic to notify the changed bits
                 notifyDataSetChanged();
 
                 if (folderChanged) {
@@ -922,7 +965,9 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
     }
 
     //########################
+    //##
     //## StringFilter
+    //##
     //########################
     private static class StringFilter extends Filter {
         private final GsFileBrowserListAdapter _adapter;
@@ -971,14 +1016,22 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
 
     @SuppressWarnings({"WeakerAccess", "unused"})
     public static class FilesystemViewerViewHolder extends RecyclerView.ViewHolder {
+        //########################
+        //## UI Binding
+        //########################
         final LinearLayout itemRoot;
         final ImageView image;
         final TextView title;
         final TextView description;
 
+        // Original (XML-defined) icon size for this holder's layout, so a cover image's custom
+        // size can be reverted to normal when a recycled view is rebound to a non-cover item.
         final int defaultImageWidth;
         final int defaultImageHeight;
 
+        //########################
+        //## Methods
+        //########################
         FilesystemViewerViewHolder(final View row) {
             super(row);
             itemRoot = row.findViewById(R.id.opoc_filesystem_item__root);
@@ -996,6 +1049,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         return isVirtualFolder(_currentFolder);
     }
 
+    // Is the folder a virtual folder - does it contain links or other special items
     public static boolean isVirtualFolder(final File file) {
         return VIRTUAL_STORAGE_RECENTS.equals(file) ||
                 VIRTUAL_STORAGE_FAVOURITE.equals(file) ||
