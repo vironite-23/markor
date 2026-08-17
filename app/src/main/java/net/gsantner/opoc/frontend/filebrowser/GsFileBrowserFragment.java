@@ -28,6 +28,7 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -37,6 +38,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.DividerItemDecoration;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -73,7 +75,7 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
     //########################
     //## Static
     //########################
-    // public static final String FRAGMENT_TAG = "FilesystemViewerFragment";
+    public static final String FRAGMENT_TAG = "FilesystemViewerFragment";
 
     public static GsFileBrowserFragment newInstance() {
         return new GsFileBrowserFragment();
@@ -95,6 +97,7 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
     private MarkorContextUtils _cu;
     private Toolbar _toolbar;
     private boolean _reloadRequiredOnResume = true;
+    private RecyclerView.ItemDecoration _fileListDivider;
 
     //########################
     //## Methods
@@ -120,6 +123,13 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
         setDialogOptions(((FilesystemFragmentOptionsListener) activity).getFilesystemFragmentOptions(_dopt));
 
         addDivider(activity, _recyclerList);
+        if (_recyclerList.getItemDecorationCount() > 0) {
+            _fileListDivider = _recyclerList.getItemDecorationAt(_recyclerList.getItemDecorationCount() - 1);
+        }
+
+        _dopt.viewMode = _appSettings.getFileBrowserViewMode(null); // global default; per-folder override applied in onFsViewerFolderLoad
+        _dopt.gridColumns = _appSettings.getFileBrowserGridColumns();
+        applyViewMode();
 
         _filesystemViewerAdapter = new GsFileBrowserListAdapter(_dopt, activity);
         _recyclerList.setAdapter(_filesystemViewerAdapter);
@@ -157,6 +167,21 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
         checkOptions();
     }
 
+    public void onClicked(View view) {
+        switch (view.getId()) {
+            case R.id.ui__filesystem_dialog__button_ok:
+            case R.id.ui__filesystem_dialog__home: {
+                _filesystemViewerAdapter.onClick(view);
+                break;
+            }
+            case R.id.ui__filesystem_dialog__button_cancel: {
+                onFsViewerCancel(_dopt.requestId);
+                break;
+            }
+
+        }
+    }
+
     @Override
     protected void onToolbarClicked(View v) {
         executeFilterNotebookAction();
@@ -175,6 +200,9 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
         }
 
         _dopt.sortOrder = _appSettings.getFolderSortOrder(newFolder);
+        _dopt.viewMode = _appSettings.getFileBrowserViewMode(newFolder);
+        _dopt.viewModeIsFolderLocal = _appSettings.isFileBrowserViewModeFolderLocal(newFolder);
+        applyViewMode();
         _dopt.favouriteFiles = _appSettings.getFavouriteFiles();
         _dopt.recentFiles = _appSettings.getRecentFiles();
         _dopt.popularFiles = _appSettings.getPopularFiles();
@@ -262,6 +290,7 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
             _fragmentMenu.findItem(R.id.action_share_files).setVisible(selFilesOnly && (selMulti1 || selMultiMore) && !_cu.isUnderStorageAccessFolder(getContext(), getCurrentFolder(), true));
             _fragmentMenu.findItem(R.id.action_go_to).setVisible(!_filesystemViewerAdapter.areItemsSelected());
             _fragmentMenu.findItem(R.id.action_sort).setVisible(_filesystemViewerAdapter.isCurrentFolderSortable() && !_filesystemViewerAdapter.areItemsSelected());
+            _fragmentMenu.findItem(R.id.action_view_mode).setVisible(!_filesystemViewerAdapter.areItemsSelected());
             _fragmentMenu.findItem(R.id.action_import).setVisible(!_filesystemViewerAdapter.areItemsSelected() && !_filesystemViewerAdapter.isCurrentFolderVirtual());
             _fragmentMenu.findItem(R.id.action_settings).setVisible(!_filesystemViewerAdapter.areItemsSelected());
             _fragmentMenu.findItem(R.id.action_favourite).setVisible(selMultiAny && !allSelectedFav);
@@ -377,6 +406,10 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
             }
             case R.id.action_sort: {
                 updateSortSettings();
+                return true;
+            }
+            case R.id.action_view_mode: {
+                showViewModeDropdown();
                 return true;
             }
             case R.id.action_import: {
@@ -678,6 +711,118 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
                     // Ui will be updated by onFsViewerDoUiUpdate after the load
                     reloadCurrentFolder();
                 });
+    }
+
+    /**
+     * Show a dropdown (PopupMenu) anchored to the toolbar's view-mode action item, letting the
+     * user pick List / Detailed list / Grid, and (when Grid is selected) the number of columns.
+     */
+    private void showViewModeDropdown() {
+        final Activity activity = getActivity();
+        if (activity == null || _toolbar == null) {
+            return;
+        }
+        final View anchor = _toolbar.findViewById(R.id.action_view_mode);
+        final PopupMenu popup = new PopupMenu(activity, anchor != null ? anchor : _toolbar);
+        final Menu menu = popup.getMenu();
+
+        final MenuItem miFolderLocal = menu.add(0, 0, 0, R.string.folder_local);
+        miFolderLocal.setCheckable(true);
+        miFolderLocal.setChecked(_dopt.viewModeIsFolderLocal);
+
+        final MenuItem miList = menu.add(1, 1, 1, R.string.list);
+        final MenuItem miDetailed = menu.add(1, 2, 2, R.string.detailed_list);
+        final MenuItem miGrid = menu.add(1, 3, 3, R.string.grid);
+        miList.setCheckable(true);
+        miDetailed.setCheckable(true);
+        miGrid.setCheckable(true);
+        miList.setChecked(_dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.LIST);
+        miDetailed.setChecked(_dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.DETAILED_LIST);
+        miGrid.setChecked(_dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.GRID);
+
+        if (_dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.GRID) {
+            for (int columns = 2; columns <= 6; columns++) {
+                final MenuItem colItem = menu.add(2, 100 + columns, 3 + columns, getString(R.string.grid_columns) + ": " + columns);
+                colItem.setCheckable(true);
+                colItem.setChecked(_dopt.gridColumns == columns);
+            }
+        }
+
+        popup.setOnMenuItemClickListener(item -> {
+            final int id = item.getItemId();
+            if (id == 0) {
+                toggleViewModeFolderLocal();
+                showViewModeDropdown(); // Re-open so the updated toggle state is visible
+            } else if (id == 1) {
+                setViewMode(GsFileBrowserOptions.FileBrowserViewMode.LIST);
+            } else if (id == 2) {
+                setViewMode(GsFileBrowserOptions.FileBrowserViewMode.DETAILED_LIST);
+            } else if (id == 3) {
+                setViewMode(GsFileBrowserOptions.FileBrowserViewMode.GRID);
+            } else if (id >= 100) {
+                setGridColumns(id - 100);
+            }
+            return true;
+        });
+        popup.show();
+    }
+
+    private void setViewMode(final GsFileBrowserOptions.FileBrowserViewMode mode) {
+        _dopt.viewMode = mode;
+        final File folder = _dopt.viewModeIsFolderLocal ? getCurrentFolder() : null;
+        _appSettings.setFileBrowserViewMode(folder, mode);
+        applyViewMode();
+    }
+
+    /**
+     * Mirrors the sort dialog's "folder local" toggle: switches whether the view mode picked
+     * from the dropdown applies only to the current folder, or globally.
+     */
+    private void toggleViewModeFolderLocal() {
+        final File folder = getCurrentFolder();
+        _dopt.viewModeIsFolderLocal = !_dopt.viewModeIsFolderLocal;
+        if (_dopt.viewModeIsFolderLocal) {
+            _appSettings.setFileBrowserViewMode(folder, _dopt.viewMode);
+        } else {
+            _appSettings.setFileBrowserViewMode(folder, null); // clear the folder-local override
+            _appSettings.setFileBrowserViewMode(null, _dopt.viewMode); // keep the global mode in sync
+        }
+    }
+
+    private void setGridColumns(final int columns) {
+        _dopt.gridColumns = Math.max(1, columns);
+        _appSettings.setFileBrowserGridColumns(_dopt.gridColumns);
+        applyViewMode();
+    }
+
+    /**
+     * Applies _dopt.viewMode / _dopt.gridColumns to the RecyclerView: swaps in the right
+     * LayoutManager, keeps the adapter's cached LayoutManager reference in sync (needed for
+     * scroll position save/restore), and toggles the divider (only meaningful for list modes).
+     */
+    private void applyViewMode() {
+        final Activity activity = getActivity();
+        if (activity == null || _recyclerList == null) {
+            return;
+        }
+
+        if (_dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.GRID) {
+            _recyclerList.setLayoutManager(new GridLayoutManager(activity, Math.max(1, _dopt.gridColumns)));
+            if (_fileListDivider != null) {
+                _recyclerList.removeItemDecoration(_fileListDivider);
+            }
+        } else {
+            _recyclerList.setLayoutManager(new LinearLayoutManager(activity));
+            if (_fileListDivider != null) {
+                _recyclerList.removeItemDecoration(_fileListDivider); // no-op if not currently added
+                _recyclerList.addItemDecoration(_fileListDivider);
+            }
+        }
+
+        if (_filesystemViewerAdapter != null) {
+            _filesystemViewerAdapter.onLayoutManagerChanged();
+            _filesystemViewerAdapter.notifyDataSetChanged();
+        }
     }
 
     @Override
