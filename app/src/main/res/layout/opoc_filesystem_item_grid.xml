@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+/*#######################################################
+ *
+ *   Maintained 2017-2025 by Gregor Santner <gsantner AT mailbox DOT org>
+ *
+ *   License of this file: Apache 2.0
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *     https://github.com/gsantner/opoc/#licensing
+ *
+#########################################################*/
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/opoc_filesystem_item__root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp">
+
+    <ImageView
+        android:id="@+id/opoc_filesystem_item__image"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_gravity="center_horizontal"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        tools:ignore="ContentDescription"
+        tools:src="@android:drawable/btn_radio" />
+
+    <TextView
+        android:id="@+id/opoc_filesystem_item__title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:ellipsize="end"
+        android:gravity="center_horizontal|top"
+        android:importantForAccessibility="no"
+        android:maxLines="3"
+        android:textAppearance="@style/TextAppearance.AppCompat.Body2"
+        android:textAlignment="center"
+        android:textSize="13sp"
+        tools:text="how to write a really quite long readme.md" />
+
+    <!-- Kept but hidden in grid mode: FilesystemViewerViewHolder binds to this
+         id unconditionally, so it must exist to avoid a NullPointerException. -->
+    <TextView
+        android:id="@+id/opoc_filesystem_item__description"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        tools:ignore="ContentDescription" />
+
+</LinearLayout>
