@@ -260,10 +260,15 @@ public abstract class GsPreferenceFragmentBase<AS extends GsSharedPreferencesPro
             _appSettings.registerPreferenceChangedListener(preferences, this);
             _registeredPrefs.add(tprefname);
         } else if (!shouldListen) {
+            // Bugfix: previously this always unregistered using the outer 'tprefname'
+            // (instead of the looped 'prefname') and never cleared _registeredPrefs,
+            // so the listener was never re-registered on the next onResume() and
+            // preference summaries/visibility silently stopped updating.
             for (String prefname : _registeredPrefs) {
-                SharedPreferences preferences = _appSettings.getContext().getSharedPreferences(tprefname, Context.MODE_PRIVATE);
+                SharedPreferences preferences = _appSettings.getContext().getSharedPreferences(prefname, Context.MODE_PRIVATE);
                 _appSettings.unregisterPreferenceChangedListener(preferences, this);
             }
+            _registeredPrefs.clear();
         }
     }
 
