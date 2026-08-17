@@ -122,7 +122,7 @@
          for the logic that persists which file + scroll position per folder. -->
     <include
         layout="@layout/document__sidepanel_text_viewer"
-        android:layout_width="320dp"
+        android:layout_width="400dp"
         android:layout_height="match_parent"
         android:layout_gravity="end" />
 
