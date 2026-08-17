@@ -144,7 +144,12 @@ public class GsLanguagePreferenceCompat extends ListPreference {
 
     // Concat english and localized language name
     // Append country if country specific (e.g. Portuguese Brazil)
-    private String summarizeLocale(final Locale locale, final String localeAndroidCode) {
+    private String summarizeLocale(final Locale locale, final String localeAndroidCodeOrNull) {
+        // Bugfix: localeAndroidCode used to be used directly (e.g. ".equals(...)")
+        // without a null check. getValue() can return null (e.g. before the
+        // preference's default has been persisted yet), which crashed the whole
+        // Settings screen with a NullPointerException as soon as it tried to render.
+        final String localeAndroidCode = localeAndroidCodeOrNull != null ? localeAndroidCodeOrNull : SYSTEM_LANGUAGE_CODE;
         String country = locale.getDisplayCountry(locale);
         String language = locale.getDisplayLanguage(locale);
         String ret = locale.getDisplayLanguage(Locale.ENGLISH)
