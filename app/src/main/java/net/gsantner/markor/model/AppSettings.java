@@ -32,6 +32,7 @@ import net.gsantner.markor.util.MarkorContextUtils;
 import net.gsantner.markor.util.ShortcutUtils;
 import net.gsantner.opoc.format.GsTextUtils;
 import net.gsantner.opoc.frontend.filebrowser.GsFileBrowserListAdapter;
+import net.gsantner.opoc.frontend.filebrowser.GsFileBrowserOptions;
 import net.gsantner.opoc.model.GsSharedPreferencesPropertyBackend;
 import net.gsantner.opoc.util.GsCollectionUtils;
 import net.gsantner.opoc.util.GsContextUtils;
@@ -331,6 +332,118 @@ public class AppSettings extends GsSharedPreferencesPropertyBackend {
         return order;
     }
 
+    private static final String PREF_PREFIX_FILEBROWSER_VIEW_MODE = "PREF_PREFIX_FILEBROWSER_VIEW_MODE_";
+    private static final String PREF_KEY__FILEBROWSER_GRID_COLUMNS = "PREF_FILEBROWSER_GRID_COLUMNS";
+
+    /**
+     * Get the file browser view mode for a folder or globally, mirroring
+     * {@link #getFolderSortOrder(File)}. If no view mode is set for the folder (or folder is
+     * null), the global view mode is returned.
+     */
+    public GsFileBrowserOptions.FileBrowserViewMode getFileBrowserViewMode(final @Nullable File folder) {
+        final String path = GsFileUtils.getPath(folder);
+        String json = GsTextUtils.isNullOrEmpty(path) ? null : getString(PREF_PREFIX_FILEBROWSER_VIEW_MODE + path, null);
+        if (json == null) {
+            json = getString(PREF_PREFIX_FILEBROWSER_VIEW_MODE, null); // global fallback
+        }
+        return GsFileBrowserOptions.FileBrowserViewMode.fromString(json);
+    }
+
+    /**
+     * Whether {@code folder} has its own view mode override (as opposed to inheriting the
+     * global one), mirroring {@link GsFileUtils.SortOrder#isFolderLocal}.
+     */
+    public boolean isFileBrowserViewModeFolderLocal(final @Nullable File folder) {
+        final String path = GsFileUtils.getPath(folder);
+        return !GsTextUtils.isNullOrEmpty(path) && getString(PREF_PREFIX_FILEBROWSER_VIEW_MODE + path, null) != null;
+    }
+
+    /**
+     * Set the file browser view mode for a folder, or globally if {@code folder} is null.
+     * Passing null as mode removes the folder-local override (reverts to global).
+     */
+    public void setFileBrowserViewMode(final @Nullable File folder, final @Nullable GsFileBrowserOptions.FileBrowserViewMode mode) {
+        final String key = folder != null ? (PREF_PREFIX_FILEBROWSER_VIEW_MODE + GsFileUtils.getPath(folder)) : PREF_PREFIX_FILEBROWSER_VIEW_MODE;
+        if (mode == null) {
+            remove(key);
+        } else {
+            setString(key, mode.name());
+        }
+    }
+
+    private static final String PREF_PREFIX_SIDEPANEL_TEXT_FOR_FOLDER = "PREF_PREFIX_SIDEPANEL_TEXT_FOR_FOLDER_";
+    private static final String PREF_PREFIX_SIDEPANEL_SCROLLY_FOR_FILE = "PREF_PREFIX_SIDEPANEL_SCROLLY_FOR_FILE_";
+
+    /**
+     * Item 5: which sibling text file is currently shown in the editor's swipe-left read-only
+     * panel, remembered per-folder (the folder containing the document being edited) so
+     * different folders can have a different text open, and it survives app restarts.
+     */
+    public void setSidePanelTextForFolder(final @Nullable File folder, final @Nullable File textFile) {
+        if (folder == null) {
+            return;
+        }
+        final String key = PREF_PREFIX_SIDEPANEL_TEXT_FOR_FOLDER + GsFileUtils.getPath(folder);
+        if (textFile == null) {
+            remove(key);
+        } else {
+            setString(key, GsFileUtils.getPath(textFile));
+        }
+    }
+
+    public File getSidePanelTextForFolder(final @Nullable File folder) {
+        if (folder == null) {
+            return null;
+        }
+        final String path = getString(PREF_PREFIX_SIDEPANEL_TEXT_FOR_FOLDER + GsFileUtils.getPath(folder), null);
+        return GsTextUtils.isNullOrEmpty(path) ? null : new File(path);
+    }
+
+    /**
+     * Item 5: vertical scroll offset (px) of the panel's read-only text, remembered per-file so
+     * reopening the same folder/file restores exactly where the user left off, even across app
+     * restarts.
+     */
+    public void setSidePanelScrollY(final @Nullable File textFile, final int scrollY) {
+        if (textFile != null) {
+            setInt(PREF_PREFIX_SIDEPANEL_SCROLLY_FOR_FILE + GsFileUtils.getPath(textFile), scrollY);
+        }
+    }
+
+    public int getSidePanelScrollY(final @Nullable File textFile) {
+        return textFile == null ? 0 : getInt(PREF_PREFIX_SIDEPANEL_SCROLLY_FOR_FILE + GsFileUtils.getPath(textFile), 0);
+    }
+
+    public int getFileBrowserGridColumns() {
+        return getInt(PREF_KEY__FILEBROWSER_GRID_COLUMNS, 3);
+    }
+
+    public void setFileBrowserGridColumns(final int columns) {
+        setInt(PREF_KEY__FILEBROWSER_GRID_COLUMNS, Math.max(1, columns));
+    }
+
+    public String getGridCoverImageFilename() {
+        final String v = getString(R.string.pref_key__grid_cover_filename, "Sampul.jpg");
+        return GsTextUtils.isNullOrEmpty(v) ? "Sampul.jpg" : v;
+    }
+
+    public int getGridCoverImageWidthDp() {
+        return parsePositiveIntOrDefault(getString(R.string.pref_key__grid_cover_width_dp, "64"), 64);
+    }
+
+    public int getGridCoverImageHeightDp() {
+        return parsePositiveIntOrDefault(getString(R.string.pref_key__grid_cover_height_dp, "88"), 88);
+    }
+
+    private static int parsePositiveIntOrDefault(final String value, final int defaultValue) {
+        try {
+            final int parsed = Integer.parseInt(value.trim());
+            return parsed > 0 ? parsed : defaultValue;
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
     public boolean isShowSettingsOptionInMainToolbar() {
         return false; // getBool(R.string.pref_key__show_settings_option_in_main_toolbar, true);
     }
@@ -422,7 +535,6 @@ public class AppSettings extends GsSharedPreferencesPropertyBackend {
 
     private static final String PREF_PREFIX_EDIT_POS_CHAR = "PREF_PREFIX_EDIT_POS_CHAR";
     private static final String PREF_PREFIX_EDIT_SCROLL_Y = "PREF_PREFIX_EDIT_SCROLL_Y";
-    private static final String PREF_PREFIX_EDIT_HEIGHT = "PREF_PREFIX_EDIT_HEIGHT";
     private static final String PREF_PREFIX_WRAP_STATE = "PREF_PREFIX_WRAP_STATE";
     private static final String PREF_PREFIX_HIGHLIGHT_STATE = "PREF_PREFIX_HIGHLIGHT_STATE";
     private static final String PREF_PREFIX_PREVIEW_STATE = "PREF_PREFIX_PREVIEW_STATE";
@@ -430,8 +542,8 @@ public class AppSettings extends GsSharedPreferencesPropertyBackend {
     private static final String PREF_PREFIX_FONT_SIZE = "PREF_PREFIX_FONT_SIZE";
     private static final String PREF_PREFIX_FILE_FORMAT = "PREF_PREFIX_FILE_FORMAT";
     private static final String PREF_PREFIX_AUTO_FORMAT = "PREF_PREFIX_AUTO_FORMAT";
+    private static final String PREF_PREFIX_VIEW_SCROLL_X = "PREF_PREFIX_VIEW_SCROLL_X";
     private static final String PREF_PREFIX_VIEW_SCROLL_Y = "PREF_PREFIX_VIEW_SCROLL_Y";
-    private static final String PREF_PREFIX_VIEW_HEIGHT = "PREF_PREFIX_VIEW_HEIGHT";
     private static final String PREF_PREFIX_TODO_DONE_NAME = "PREF_PREFIX_TODO_DONE_NAME";
     private static final String PREF_PREFIX_LINE_NUM_STATE = "PREF_PREFIX_LINE_NUM_STATE";
     private static final String PREF_PREFIX_VIEW_FONT_SIZE = "PREF_PREFIX_VIEW_FONT_SIZE";
@@ -463,20 +575,6 @@ public class AppSettings extends GsSharedPreferencesPropertyBackend {
         }
     }
 
-    public void setLastEditHeight(final String path, final int height) {
-        if (fexists(path)) {
-            setInt(PREF_PREFIX_EDIT_HEIGHT + path, height);
-        }
-    }
-
-    public int getLastEditHeight(final String path, final int def) {
-        if (!fexists(path)) {
-            return def;
-        } else {
-            return getInt(PREF_PREFIX_EDIT_HEIGHT + path, def);
-        }
-    }
-
     public int getLastEditPosition(final String path, final int def) {
         if (!fexists(path)) {
             return def;
@@ -485,39 +583,21 @@ public class AppSettings extends GsSharedPreferencesPropertyBackend {
         }
     }
 
-    public int getLastEditScrollY(final String path, final int def) {
+    public int getLastEditScrollY(final String path, final int defaultValue) {
         if (!fexists(path)) {
-            return def;
+            return defaultValue;
         } else {
-            return getInt(PREF_PREFIX_EDIT_SCROLL_Y + path, def);
+            return getInt(PREF_PREFIX_EDIT_SCROLL_Y + path, defaultValue);
         }
     }
 
-    public void setLastViewScrollY(final String path, final int scrollY) {
-        if (fexists(path)) {
-            setInt(PREF_PREFIX_VIEW_SCROLL_Y + path, scrollY);
+    public void setLastViewPosition(File file, int scrollX, int scrollY) {
+        if (file == null || !file.exists()) {
+            return;
         }
-    }
-
-    public int getLastViewScrollY(final String path, final int def) {
-        if (!fexists(path)) {
-            return def;
-        } else {
-            return getInt(PREF_PREFIX_VIEW_SCROLL_Y + path, def);
-        }
-    }
-
-    public void setLastViewHeight(final String path, final int height) {
-        if (fexists(path)) {
-            setInt(PREF_PREFIX_VIEW_HEIGHT + path, height);
-        }
-    }
-
-    public int getLastViewHeight(final String path, final int def) {
-        if (!fexists(path)) {
-            return def;
-        } else {
-            return getInt(PREF_PREFIX_VIEW_HEIGHT + path, def);
+        if (!file.equals(getTodoFile()) && !file.equals(getQuickNoteFile())) {
+            setInt(PREF_PREFIX_VIEW_SCROLL_X + GsFileUtils.getPath(file), scrollX, _prefCache);
+            setInt(PREF_PREFIX_VIEW_SCROLL_Y + GsFileUtils.getPath(file), scrollY, _prefCache);
         }
     }
 
@@ -638,6 +718,20 @@ public class AppSettings extends GsSharedPreferencesPropertyBackend {
     public boolean getDocumentHighlightState(final String path, final CharSequence chars) {
         final boolean lengthOk = chars != null && chars.length() < (_isDeviceGoodHardware ? 100000 : 35000);
         return getBool(PREF_PREFIX_HIGHLIGHT_STATE + path, lengthOk && isHighlightingEnabled());
+    }
+
+    public int getLastViewPositionX(File file) {
+        if (file == null || !file.exists()) {
+            return -1;
+        }
+        return getInt(PREF_PREFIX_VIEW_SCROLL_X + GsFileUtils.getPath(file), -3, _prefCache);
+    }
+
+    public int getLastViewPositionY(File file) {
+        if (file == null || !file.exists()) {
+            return -1;
+        }
+        return getInt(PREF_PREFIX_VIEW_SCROLL_Y + GsFileUtils.getPath(file), -3, _prefCache);
     }
 
     private List<String> getPopularDocumentsSorted() {
@@ -935,10 +1029,6 @@ public class AppSettings extends GsSharedPreferencesPropertyBackend {
 
     public boolean isIndentWithTabKey() {
         return getBool(R.string.pref_key__editor_tab_to_indent, false);
-    }
-
-    public boolean isStaticCursorEnabled() {
-        return getBool(R.string.pref_key__editor_static_cursor, false);
     }
 
     public boolean isExperimentalFeaturesEnabled() {
