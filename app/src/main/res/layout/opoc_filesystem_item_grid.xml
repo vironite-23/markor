@@ -17,21 +17,28 @@
     android:clickable="true"
     android:focusable="true"
     android:gravity="center_horizontal"
-    android:orientation="vertical"
-    android:paddingTop="8dp"
-    android:paddingBottom="8dp"
-    android:paddingStart="4dp"
-    android:paddingEnd="4dp">
+    android:orientation="vertical">
 
-    <ImageView
-        android:id="@+id/opoc_filesystem_item__image"
-        android:layout_width="64dp"
-        android:layout_height="64dp"
+    <!-- Actual pixel size is set at bind time from the grid cover width/height settings, so
+         the container is one consistent, user-resizable rectangle whether or not the item
+         has a cover image. Rounded corners + selection highlight are applied at runtime too
+         (ViewOutlineProvider / background), since they depend on theme + selection state. -->
+    <FrameLayout
+        android:id="@+id/opoc_filesystem_item__image_frame"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:importantForAccessibility="no"
-        android:scaleType="centerCrop"
-        tools:ignore="ContentDescription"
-        tools:src="@android:drawable/btn_radio" />
+        android:background="@drawable/grid_item_bg_normal">
+
+        <ImageView
+            android:id="@+id/opoc_filesystem_item__image"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:importantForAccessibility="no"
+            android:scaleType="centerCrop"
+            tools:ignore="ContentDescription"
+            tools:src="@android:drawable/btn_radio" />
+    </FrameLayout>
 
     <TextView
         android:id="@+id/opoc_filesystem_item__title"
