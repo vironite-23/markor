@@ -402,6 +402,14 @@ public class AppSettings extends GsSharedPreferencesPropertyBackend {
         setString(R.string.pref_key__grid_spacing_dp, String.valueOf(Math.max(0, dp)));
     }
 
+    public int getGridSidePaddingDp() {
+        return parseNonNegativeIntOrDefault(getString(R.string.pref_key__grid_side_padding_dp, "12"), 12);
+    }
+
+    public void setGridSidePaddingDp(final int dp) {
+        setString(R.string.pref_key__grid_side_padding_dp, String.valueOf(Math.max(0, dp)));
+    }
+
     public boolean isFileBrowserHideNonTextFiles() {
         return getBool(R.string.pref_key__file_browser_hide_non_text_files, false);
     }
