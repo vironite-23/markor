@@ -204,6 +204,19 @@
                 android:key="@string/pref_key__grid_cover_height_dp"
                 android:inputType="number"
                 android:title="@string/grid_cover_height_dp" />
+            <androidx.preference.EditTextPreference
+                android:defaultValue="8"
+                android:icon="@drawable/ic_view_module_black_24dp"
+                android:key="@string/pref_key__grid_spacing_dp"
+                android:inputType="number"
+                android:summary="@string/grid_spacing_dp_description"
+                android:title="@string/grid_spacing_dp" />
+            <androidx.preference.CheckBoxPreference
+                android:defaultValue="false"
+                android:icon="@android:drawable/ic_menu_view"
+                android:key="@string/pref_key__file_browser_hide_non_text_files"
+                android:summary="@string/file_browser_hide_non_text_files_description"
+                android:title="@string/file_browser_hide_non_text_files" />
         </PreferenceCategory>
 
         <PreferenceCategory android:title="@string/backup">
@@ -313,6 +326,38 @@
             </PreferenceCategory>
 
         </PreferenceScreen>
+
+        <PreferenceCategory android:title="@string/editor_background_enabled">
+            <androidx.preference.CheckBoxPreference
+                android:defaultValue="false"
+                android:icon="@drawable/ic_image_black_24dp"
+                android:key="@string/pref_key__editor_background_enabled"
+                android:summary="@string/editor_background_enabled_description"
+                android:title="@string/editor_background_enabled" />
+            <Preference
+                android:dependency="@string/pref_key__editor_background_enabled"
+                android:icon="@drawable/ic_image_black_24dp"
+                android:key="@string/pref_key__editor_background_image_path"
+                android:title="@string/editor_background_image_path" />
+            <androidx.preference.SeekBarPreference
+                android:defaultValue="0"
+                android:dependency="@string/pref_key__editor_background_enabled"
+                android:icon="@drawable/ic_image_black_24dp"
+                android:key="@string/pref_key__editor_background_blur"
+                android:max="25"
+                app:min="0"
+                android:title="@string/editor_background_blur"
+                app:showSeekBarValue="true" />
+            <androidx.preference.SeekBarPreference
+                android:defaultValue="40"
+                android:dependency="@string/pref_key__editor_background_enabled"
+                android:icon="@drawable/ic_image_black_24dp"
+                android:key="@string/pref_key__editor_background_darkness"
+                android:max="100"
+                app:min="0"
+                android:title="@string/editor_background_darkness"
+                app:showSeekBarValue="true" />
+        </PreferenceCategory>
 
         <PreferenceCategory android:title="@string/syntax_highlighting">
             <CheckBoxPreference
