@@ -342,6 +342,16 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="grid_cover_filename_description">If a folder contains an image with this exact filename, it is shown as the folder\'s cover in grid view</string>
     <string name="grid_cover_width_dp">Cover width (dp)</string>
     <string name="grid_cover_height_dp">Cover height (dp)</string>
+    <string name="grid_item_padding_dp">Grid item padding (dp)</string>
+    <string name="grid_item_padding_dp_description">Lower padding leaves more room for larger grid icons and covers</string>
+    <string name="hide_non_text_files">Hide non-text files</string>
+    <string name="hide_non_text_files_description">Hide files that are not recognized as text in the notebook</string>
+    <string name="editor_background_image">Editor background image</string>
+    <string name="editor_background_image_summary">Choose an image, or clear it to use the normal editor background</string>
+    <string name="editor_background_blur">Editor background blur</string>
+    <string name="editor_background_darkness">Editor background darkness</string>
+    <string name="select_background_image">Select background image</string>
+    <string name="clear_background_image">Clear background image</string>
     <string name="select_text">Select text</string>
     <string name="side_panel_no_other_text_files">No other text files in this folder</string>
     <string name="side_panel_search_not_found">Not found</string>
