@@ -11,6 +11,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Build;
@@ -57,6 +58,7 @@ public class SettingsActivity extends MarkorBaseActivity {
     }
 
     public static int activityRetVal = RESULT.NOCHANGE;
+    private static final int REQUEST_EDITOR_BACKGROUND_IMAGE = 4201;
     private static int iconColor = Color.WHITE;
 
     protected Toolbar toolbar;
@@ -99,6 +101,25 @@ public class SettingsActivity extends MarkorBaseActivity {
             t.addToBackStack(tag);
         }
         t.replace(R.id.settings__activity__fragment_placeholder, prefFrag, tag).commit();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_EDITOR_BACKGROUND_IMAGE && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            final Uri uri = data.getData();
+            try {
+                getContentResolver().takePersistableUriPermission(uri,
+                        data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION));
+            } catch (SecurityException ignored) {
+            }
+            _appSettings.setString(R.string.pref_key__editor_background_image, uri.toString());
+            activityRetVal = RESULT.CHANGED;
+            final GsPreferenceFragmentBase prefFrag = (GsPreferenceFragmentBase) getSupportFragmentManager().findFragmentByTag(SettingsFragmentMaster.TAG);
+            if (prefFrag != null) {
+                prefFrag.doUpdatePreferences();
+            }
+        }
     }
 
     @Override
@@ -172,6 +193,9 @@ public class SettingsActivity extends MarkorBaseActivity {
             updateSummary(R.string.pref_key__exts_to_always_open_in_this_app, _appSettings.getString(R.string.pref_key__exts_to_always_open_in_this_app, ""));
 
             updateSummary(R.string.pref_key__snippet_directory_path, _appSettings.getSnippetsDirectory().getAbsolutePath());
+            final String backgroundUri = _appSettings.getEditorBackgroundImageUri();
+            updateSummary(R.string.pref_key__editor_background_image,
+                    TextUtils.isEmpty(backgroundUri) ? getString(R.string.none) : backgroundUri);
 
             final String fileDescFormat = _appSettings.getString(R.string.pref_key__file_description_format, "");
             if (fileDescFormat.equals("")) {
@@ -374,6 +398,14 @@ public class SettingsActivity extends MarkorBaseActivity {
                 case R.string.pref_key__todotxt__reorder_actions: {
                     startActivity(new Intent(getActivity(), ActionButtonSettingsActivity.class).putExtra(ActionButtonSettingsActivity.EXTRA_FORMAT_KEY, keyResId));
                     break;
+                }
+                case R.string.pref_key__editor_background_image: {
+                    final Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                    pick.addCategory(Intent.CATEGORY_OPENABLE);
+                    pick.setType("image/*");
+                    pick.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                    startActivityForResult(pick, REQUEST_EDITOR_BACKGROUND_IMAGE);
+                    return true;
                 }
                 case R.string.pref_key__set_encryption_password: {
                     MarkorDialogFactory.showSetPasswordDialog(getActivity());
