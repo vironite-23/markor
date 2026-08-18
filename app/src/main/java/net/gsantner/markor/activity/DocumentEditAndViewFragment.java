@@ -14,6 +14,7 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -38,6 +39,7 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.HorizontalScrollView;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -120,6 +122,8 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
     private ViewStub _webViewStub;
     private MarkorWebViewClient _webViewClient;
     private ViewGroup _editorHolder;
+    private ImageView _editorBackgroundImageView;
+    private View _editorBackgroundDarknessView;
     private ViewGroup _textActionsBar;
 
     private DraggableScrollbarScrollView _verticalScrollView;
@@ -227,6 +231,10 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
         final int editorBackgroundColor = _appSettings.getEditorBackgroundColor();
         _hlEditor.setBackgroundColor(editorBackgroundColor);
         _editorHolder.setBackgroundColor(editorBackgroundColor);
+
+        _editorBackgroundImageView = view.findViewById(R.id.document__fragment__edit__editor_background_image);
+        _editorBackgroundDarknessView = view.findViewById(R.id.document__fragment__edit__editor_background_darkness);
+        configureEditorBackground(editorBackgroundColor);
         _hlEditor.setTextColor(_appSettings.getEditorForegroundColor());
         _hlEditor.setGravity(_appSettings.isEditorStartEditingInCenter() ? Gravity.CENTER : Gravity.NO_GRAVITY);
         _hlEditor.setHighlightingEnabled(_appSettings.getDocumentHighlightState(_document.path, _hlEditor.getText()));
@@ -276,6 +284,45 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
             });
         }
 
+    }
+
+    private void configureEditorBackground(final int fallbackColor) {
+        if (_editorBackgroundImageView == null || _editorBackgroundDarknessView == null) {
+            return;
+        }
+
+        final String uriString = _appSettings.getEditorBackgroundImageUri();
+        if (TextUtils.isEmpty(uriString)) {
+            _editorBackgroundImageView.setVisibility(View.GONE);
+            _editorBackgroundDarknessView.setVisibility(View.GONE);
+            _editorHolder.setBackgroundColor(fallbackColor);
+            _hlEditor.setBackgroundColor(fallbackColor);
+            return;
+        }
+
+        try {
+            _editorBackgroundImageView.setImageURI(Uri.parse(uriString));
+            _editorBackgroundImageView.setVisibility(View.VISIBLE);
+            _editorBackgroundDarknessView.setVisibility(View.VISIBLE);
+
+            final float darkness = _appSettings.getEditorBackgroundDarkness() / 100f;
+            _editorBackgroundDarknessView.setAlpha(darkness);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                final float blur = _appSettings.getEditorBackgroundBlur();
+                _editorBackgroundImageView.setRenderEffect(
+                        blur > 0 ? android.graphics.RenderEffect.createBlurEffect(
+                                blur, blur, android.graphics.Shader.TileMode.CLAMP) : null);
+            }
+            // The editor itself must be transparent so the selected image remains visible.
+            _editorHolder.setBackgroundColor(Color.TRANSPARENT);
+            _hlEditor.setBackgroundColor(Color.TRANSPARENT);
+        } catch (Exception e) {
+            _editorBackgroundImageView.setVisibility(View.GONE);
+            _editorBackgroundDarknessView.setVisibility(View.GONE);
+            _editorHolder.setBackgroundColor(fallbackColor);
+            _hlEditor.setBackgroundColor(fallbackColor);
+        }
     }
 
     @Override
@@ -345,6 +392,9 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
             _webView.onResume();
         }
         loadDocument();
+        if (_editorHolder != null) {
+            configureEditorBackground(_appSettings.getEditorBackgroundColor());
+        }
         if (_editTextUndoRedoHelper != null && _editTextUndoRedoHelper.getTextView() != _hlEditor) {
             _editTextUndoRedoHelper.setTextView(_hlEditor);
         }
