@@ -392,6 +392,67 @@ public class AppSettings extends GsSharedPreferencesPropertyBackend {
         return parsePositiveIntOrDefault(getString(R.string.pref_key__grid_cover_height_dp, "88"), 88);
     }
 
+    // Gap/spacing between items in grid mode (dp). Smaller gap => more room for the
+    // icon/cover inside each cell => icon appears bigger.
+    public int getGridSpacingDp() {
+        return parseNonNegativeIntOrDefault(getString(R.string.pref_key__grid_spacing_dp, "8"), 8);
+    }
+
+    public void setGridSpacingDp(final int dp) {
+        setString(R.string.pref_key__grid_spacing_dp, String.valueOf(Math.max(0, dp)));
+    }
+
+    public boolean isFileBrowserHideNonTextFiles() {
+        return getBool(R.string.pref_key__file_browser_hide_non_text_files, false);
+    }
+
+    public void setFileBrowserHideNonTextFiles(final boolean hide) {
+        setBool(R.string.pref_key__file_browser_hide_non_text_files, hide);
+    }
+
+    public boolean isEditorBackgroundEnabled() {
+        return getBool(R.string.pref_key__editor_background_enabled, false);
+    }
+
+    public void setEditorBackgroundEnabled(final boolean enabled) {
+        setBool(R.string.pref_key__editor_background_enabled, enabled);
+    }
+
+    public String getEditorBackgroundImagePath() {
+        return getString(R.string.pref_key__editor_background_image_path, "");
+    }
+
+    public void setEditorBackgroundImagePath(final String path) {
+        setString(R.string.pref_key__editor_background_image_path, path == null ? "" : path);
+    }
+
+    // 0 = no blur, 25 = max blur
+    public int getEditorBackgroundBlur() {
+        return getInt(R.string.pref_key__editor_background_blur, 0);
+    }
+
+    public void setEditorBackgroundBlur(final int blur) {
+        setInt(R.string.pref_key__editor_background_blur, Math.max(0, Math.min(25, blur)));
+    }
+
+    // 0 = no darkening overlay, 100 = fully black
+    public int getEditorBackgroundDarkness() {
+        return getInt(R.string.pref_key__editor_background_darkness, 40);
+    }
+
+    public void setEditorBackgroundDarkness(final int darkness) {
+        setInt(R.string.pref_key__editor_background_darkness, Math.max(0, Math.min(100, darkness)));
+    }
+
+    private static int parseNonNegativeIntOrDefault(final String value, final int defaultValue) {
+        try {
+            final int parsed = Integer.parseInt(value.trim());
+            return parsed >= 0 ? parsed : defaultValue;
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
     private static int parsePositiveIntOrDefault(final String value, final int defaultValue) {
         try {
             final int parsed = Integer.parseInt(value.trim());
