@@ -282,7 +282,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         applyGridCoverImageIfAny(holder, file, isGoUp, isVirtual, isFile);
 
         // Some extras
-        if (_dopt.itemSidePadding > 0) {
+        if (_dopt.viewMode != GsFileBrowserOptions.FileBrowserViewMode.GRID && _dopt.itemSidePadding > 0) {
             int dp = (int) (_dopt.itemSidePadding * _context.getResources().getDisplayMetrics().density);
             holder.itemRoot.setPadding(dp, holder.itemRoot.getPaddingTop(), dp, holder.itemRoot.getPaddingBottom());
         }
@@ -727,34 +727,47 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
      */
     private void applyGridCoverImageIfAny(final FilesystemViewerViewHolder holder, final File folder,
                                            final boolean isGoUp, final boolean isVirtual, final boolean isFile) {
-        // Reset any custom size from a previous (recycled) bind back to the layout default
-        final ViewGroup.LayoutParams lp = holder.image.getLayoutParams();
-        if (lp != null && (lp.width != holder.defaultImageWidth || lp.height != holder.defaultImageHeight)) {
-            lp.width = holder.defaultImageWidth;
-            lp.height = holder.defaultImageHeight;
-            holder.image.setLayoutParams(lp);
-        }
+        final AppSettings settings = AppSettings.get(_context);
+        final float density = _context.getResources().getDisplayMetrics().density;
 
-        if (_dopt.viewMode != GsFileBrowserOptions.FileBrowserViewMode.GRID || isGoUp || isVirtual || isFile || folder == null) {
+        if (_dopt.viewMode != GsFileBrowserOptions.FileBrowserViewMode.GRID) {
+            final ViewGroup.LayoutParams lp = holder.image.getLayoutParams();
+            if (lp != null) {
+                lp.width = holder.defaultImageWidth;
+                lp.height = holder.defaultImageHeight;
+                holder.image.setLayoutParams(lp);
+            }
+            holder.image.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
             holder.image.setTag(null);
             return;
         }
 
-        final AppSettings settings = AppSettings.get(_context);
+        final int wPx = Math.max(1, (int) (settings.getGridCoverImageWidthDp() * density));
+        final int hPx = Math.max(1, (int) (settings.getGridCoverImageHeightDp() * density));
+        final ViewGroup.LayoutParams lp = holder.image.getLayoutParams();
+        if (lp != null) {
+            lp.width = wPx;
+            lp.height = hPx;
+            holder.image.setLayoutParams(lp);
+        }
+
+        // Coverless grid items still occupy the same rectangular tile and keep their icon
+        // centered inside it. This makes width/height settings resize both forms consistently.
+        holder.image.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        holder.image.setTag(null);
+
+        if (isGoUp || isVirtual || isFile || folder == null) {
+            return;
+        }
+
         final File coverFile = new File(folder, settings.getGridCoverImageFilename());
-        // Guard token: an async decode result is only applied if the holder is still bound to
-        // this exact cover path when it completes (prevents stale results on a recycled view).
         holder.image.setTag(coverFile.getAbsolutePath());
 
         if (!coverFile.isFile()) {
             return;
         }
 
-        final float density = _context.getResources().getDisplayMetrics().density;
-        final int wPx = Math.max(1, (int) (settings.getGridCoverImageWidthDp() * density));
-        final int hPx = Math.max(1, (int) (settings.getGridCoverImageHeightDp() * density));
         final String cacheKey = coverFile.getAbsolutePath() + ":" + coverFile.lastModified() + ":" + wPx + "x" + hPx;
-
         final Bitmap cached = _coverImageCache.get(cacheKey);
         if (cached != null) {
             setGridCoverBitmap(holder, cached, wPx, hPx);
@@ -774,13 +787,13 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                 });
             });
         } catch (RejectedExecutionException ignored) {
-            // Pool momentarily full - the icon simply stays as the default folder icon
-            // until this row is bound again (e.g. on the next scroll pass).
+            // Pool momentarily full; the default icon remains visible.
         }
     }
 
     private void setGridCoverBitmap(final FilesystemViewerViewHolder holder, final Bitmap bmp, final int wPx, final int hPx) {
         holder.image.clearColorFilter();
+        holder.image.setScaleType(ImageView.ScaleType.CENTER_CROP);
         final ViewGroup.LayoutParams lp = holder.image.getLayoutParams();
         if (lp != null) {
             lp.width = wPx;
