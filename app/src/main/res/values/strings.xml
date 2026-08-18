@@ -538,5 +538,4 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="static_cursor">Static cursor</string>
     <string name="disable_cursor_blinking">Disable cursor blinking</string>
     <string name="folder_local">Folder local</string>
-    <string name="file_does_not_exist_and_cant_be_created">File or directory does not exist and cannot be created</string>
 </resources>
