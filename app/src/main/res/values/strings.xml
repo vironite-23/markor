@@ -342,6 +342,15 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="grid_cover_filename_description">If a folder contains an image with this exact filename, it is shown as the folder\'s cover in grid view</string>
     <string name="grid_cover_width_dp">Cover width (dp)</string>
     <string name="grid_cover_height_dp">Cover height (dp)</string>
+    <string name="grid_spacing_dp">Grid icon gap (dp)</string>
+    <string name="grid_spacing_dp_description">Spacing between icons in grid view. Reduce it to make icons appear bigger</string>
+    <string name="file_browser_hide_non_text_files">Hide non-text files</string>
+    <string name="file_browser_hide_non_text_files_description">Only show text/markup files (and folders) in the file browser</string>
+    <string name="editor_background_enabled">Custom editor background</string>
+    <string name="editor_background_enabled_description">Show a custom image behind the editor text</string>
+    <string name="editor_background_image_path">Editor background image</string>
+    <string name="editor_background_blur">Background blur</string>
+    <string name="editor_background_darkness">Background darkness</string>
     <string name="select_text">Select text</string>
     <string name="side_panel_no_other_text_files">No other text files in this folder</string>
     <string name="side_panel_search_not_found">Not found</string>
