@@ -410,6 +410,11 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="pref_key__grid_cover_filename" translatable="false">pref_key__grid_cover_filename</string>
     <string name="pref_key__grid_cover_width_dp" translatable="false">pref_key__grid_cover_width_dp</string>
     <string name="pref_key__grid_cover_height_dp" translatable="false">pref_key__grid_cover_height_dp</string>
+    <string name="pref_key__grid_item_padding_dp" translatable="false">pref_key__grid_item_padding_dp</string>
+    <string name="pref_key__hide_non_text_files" translatable="false">pref_key__hide_non_text_files</string>
+    <string name="pref_key__editor_background_image" translatable="false">pref_key__editor_background_image</string>
+    <string name="pref_key__editor_background_blur" translatable="false">pref_key__editor_background_blur</string>
+    <string name="pref_key__editor_background_darkness" translatable="false">pref_key__editor_background_darkness</string>
     <string name="pref_key__wikitext_bigger_headings" translatable="false">pref_key__wikitext_bigger_headings</string>
     <string name="pref_key__asciidoc_bigger_headings" translatable="false">pref_key__asciidoc_bigger_headings</string>
     <string name="pref_key__wikitext_reorder_actions" translatable="false">pref_key__wikitext_reorder_actions</string>
