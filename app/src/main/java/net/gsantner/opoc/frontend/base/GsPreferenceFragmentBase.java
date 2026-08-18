@@ -174,10 +174,16 @@ public abstract class GsPreferenceFragmentBase<AS extends GsSharedPreferencesPro
             View view = frag.getView();
             final Integer color = getIconTintColor();
             if (view != null && color != null) {
-                Runnable r = () -> tintAllPrefIcons(frag, color);
-                for (long delayFactor : new int[]{1, 10, 50, 100, 500}) {
-                    view.postDelayed(r, delayFactor * DEFAULT_ICON_TINT_DELAY);
-                }
+                // Tint once after the preference hierarchy has been laid out. The previous
+                // implementation recursively walked the entire preference tree five times
+                // (at 200ms, 2s, 10s, 20s and 100s), which made Settings noticeably slow and
+                // could keep a large hierarchy alive long enough to trigger OOM/crash on older
+                // devices.
+                view.post(() -> {
+                    if (frag.isAdded()) {
+                        tintAllPrefIcons(frag, color);
+                    }
+                });
             }
         } catch (Exception ignored) {
         }
@@ -470,7 +476,6 @@ public abstract class GsPreferenceFragmentBase<AS extends GsSharedPreferencesPro
         setDividerVisibility(isDividerVisible());
         onPreferenceScreenChanged(preferenceFragmentCompat, preferenceScreen);
         updatePreferenceChangedListeners(true);
-        doUpdatePreferences();
     }
 
     /**
