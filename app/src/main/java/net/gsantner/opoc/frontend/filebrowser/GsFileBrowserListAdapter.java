@@ -11,6 +11,8 @@ package net.gsantner.opoc.frontend.filebrowser;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.Outline;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.FileObserver;
@@ -26,8 +28,10 @@ import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewOutlineProvider;
 import android.widget.Filter;
 import android.widget.Filterable;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -259,13 +263,18 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         }
 
         // Set icon
-        if (isSelected) {
+        final boolean isGridMode = _dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.GRID;
+        if (isSelected && !isGridMode) {
+            // List / detailed-list: swap the icon for a checkmark, same as before.
             holder.image.setImageResource(_dopt.selectedItemImage);
         } else if (_dopt.iconMaps != null && _dopt.iconMaps.containsKey(displayFile)) {
             holder.image.setImageResource(_dopt.iconMaps.get(displayFile));
         } else {
             holder.image.setImageResource(isFile ? _dopt.fileImage : _dopt.folderImage);
         }
+        // Grid mode keeps showing the real icon/cover even when selected - a highlighted
+        // background around it (applied below) is the selection indicator instead, so a
+        // selected item's cover image doesn't get hidden behind a plain checkmark.
 
         holder.image.setColorFilter(ContextCompat.getColor(
                         _context,
@@ -277,12 +286,21 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             holder.image.setColorFilter(FAVOURITE_COLOR);
         }
 
-        // Grid view: if this is a real (non-virtual) folder containing a cover image
-        // (filename configurable in settings), show that image instead of the folder icon.
+        // Grid view: apply spacing, rectangle sizing, rounded corners, and either a cover image
+        // (if the folder has one) or the default icon centered in a placeholder rectangle - plus
+        // a noticeable highlight background when selected.
         applyGridCoverImageIfAny(holder, file, isGoUp, isVirtual, isFile);
+        if (isGridMode) {
+            applyGridSelectionHighlight(holder, isSelected);
+        }
 
         // Some extras
-        if (_dopt.itemSidePadding > 0) {
+        if (isGridMode) {
+            // Gap between grid items (configurable in Settings) - smaller gap leaves more room
+            // for the icon/cover inside each cell, making it appear bigger.
+            final int gapPx = (int) (AppSettings.get(_context).getGridSpacingDp() * _context.getResources().getDisplayMetrics().density);
+            holder.itemRoot.setPadding(gapPx, gapPx, gapPx, gapPx / 2);
+        } else if (_dopt.itemSidePadding > 0) {
             int dp = (int) (_dopt.itemSidePadding * _context.getResources().getDisplayMetrics().density);
             holder.itemRoot.setPadding(dp, holder.itemRoot.getPaddingTop(), dp, holder.itemRoot.getPaddingBottom());
         }
@@ -717,49 +735,68 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
     private static final LruCache<String, Bitmap> _coverImageCache = new LruCache<>(60);
 
     /**
-     * Grid view only: if {@code folder} is a real, non-virtual, non-"go up" directory containing
-     * a cover image file (name configurable via {@link AppSettings#getGridCoverImageFilename()}),
-     * decode and show it at the configured size instead of the default folder icon.
+     * Grid view only: sizes the icon/cover container to the user-configured rectangle
+     * (shared with {@link AppSettings#getGridCoverImageWidthDp()}/{@code HeightDp()}), so a
+     * folder/file without a cover uses the exact same resizable rectangle as one that has a
+     * cover image. If {@code folder} is a real, non-virtual, non-"go up" directory containing a
+     * cover image file (name configurable via {@link AppSettings#getGridCoverImageFilename()}),
+     * that cover is decoded and shown (cropped to fill the rectangle) instead of the default
+     * folder/file icon. Otherwise the default icon is shown centered inside the rectangle, on
+     * top of a neutral placeholder background, so it doesn't stretch to fill the whole shape.
      * <p>
-     * Always resets the ImageView to its default (non-cover) size/icon first, since RecyclerView
-     * recycles views and a previous bind may have left behind a custom size or a cover bitmap
-     * that belongs to a different item.
+     * List / detailed-list views are left untouched (they still use their own small square icon
+     * at the layout's fixed default size).
      */
     private void applyGridCoverImageIfAny(final FilesystemViewerViewHolder holder, final File folder,
                                            final boolean isGoUp, final boolean isVirtual, final boolean isFile) {
-        // Reset any custom size from a previous (recycled) bind back to the layout default
-        final ViewGroup.LayoutParams lp = holder.image.getLayoutParams();
-        if (lp != null && (lp.width != holder.defaultImageWidth || lp.height != holder.defaultImageHeight)) {
-            lp.width = holder.defaultImageWidth;
-            lp.height = holder.defaultImageHeight;
-            holder.image.setLayoutParams(lp);
-        }
+        final boolean isGridMode = _dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.GRID;
 
-        if (_dopt.viewMode != GsFileBrowserOptions.FileBrowserViewMode.GRID || isGoUp || isVirtual || isFile || folder == null) {
+        if (!isGridMode || holder.imageFrame == null) {
+            // List / detailed-list: revert to this holder's XML-default (small square) size,
+            // in case this view was previously recycled from grid mode.
+            final ViewGroup.LayoutParams lp = holder.image.getLayoutParams();
+            if (lp != null && (lp.width != holder.defaultImageWidth || lp.height != holder.defaultImageHeight)) {
+                lp.width = holder.defaultImageWidth;
+                lp.height = holder.defaultImageHeight;
+                holder.image.setLayoutParams(lp);
+            }
             holder.image.setTag(null);
             return;
         }
 
         final AppSettings settings = AppSettings.get(_context);
+        final float density = _context.getResources().getDisplayMetrics().density;
+        final int wPx = Math.max(1, (int) (settings.getGridCoverImageWidthDp() * density));
+        final int hPx = Math.max(1, (int) (settings.getGridCoverImageHeightDp() * density));
+        setImageContainerSize(holder, wPx, hPx);
+
+        final boolean eligibleForCover = !isGoUp && !isVirtual && !isFile && folder != null;
+        if (!eligibleForCover) {
+            holder.image.setTag(null);
+            showDefaultGridIcon(holder, wPx);
+            return;
+        }
+
         final File coverFile = new File(folder, settings.getGridCoverImageFilename());
         // Guard token: an async decode result is only applied if the holder is still bound to
         // this exact cover path when it completes (prevents stale results on a recycled view).
         holder.image.setTag(coverFile.getAbsolutePath());
 
         if (!coverFile.isFile()) {
+            showDefaultGridIcon(holder, wPx);
             return;
         }
 
-        final float density = _context.getResources().getDisplayMetrics().density;
-        final int wPx = Math.max(1, (int) (settings.getGridCoverImageWidthDp() * density));
-        final int hPx = Math.max(1, (int) (settings.getGridCoverImageHeightDp() * density));
         final String cacheKey = coverFile.getAbsolutePath() + ":" + coverFile.lastModified() + ":" + wPx + "x" + hPx;
-
         final Bitmap cached = _coverImageCache.get(cacheKey);
         if (cached != null) {
-            setGridCoverBitmap(holder, cached, wPx, hPx);
+            setGridCoverBitmap(holder, cached);
             return;
         }
+
+        // Until the cover loads (or if it fails to decode) show the default icon so the cell
+        // isn't left blank.
+        showDefaultGridIcon(holder, wPx);
 
         try {
             executorService.execute(() -> {
@@ -769,25 +806,66 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                 }
                 holder.image.post(() -> {
                     if (bmp != null && coverFile.getAbsolutePath().equals(holder.image.getTag())) {
-                        setGridCoverBitmap(holder, bmp, wPx, hPx);
+                        setGridCoverBitmap(holder, bmp);
                     }
                 });
             });
         } catch (RejectedExecutionException ignored) {
-            // Pool momentarily full - the icon simply stays as the default folder icon
+            // Pool momentarily full - the icon simply stays as the default icon
             // until this row is bound again (e.g. on the next scroll pass).
         }
     }
 
-    private void setGridCoverBitmap(final FilesystemViewerViewHolder holder, final Bitmap bmp, final int wPx, final int hPx) {
-        holder.image.clearColorFilter();
-        final ViewGroup.LayoutParams lp = holder.image.getLayoutParams();
-        if (lp != null) {
-            lp.width = wPx;
-            lp.height = hPx;
-            holder.image.setLayoutParams(lp);
+    private void setImageContainerSize(final FilesystemViewerViewHolder holder, final int wPx, final int hPx) {
+        final ViewGroup.LayoutParams flp = holder.imageFrame.getLayoutParams();
+        if (flp != null) {
+            flp.width = wPx;
+            flp.height = hPx;
+            holder.imageFrame.setLayoutParams(flp);
         }
+        final ViewGroup.LayoutParams ilp = holder.image.getLayoutParams();
+        if (ilp != null) {
+            ilp.width = ViewGroup.LayoutParams.MATCH_PARENT;
+            ilp.height = ViewGroup.LayoutParams.MATCH_PARENT;
+            holder.image.setLayoutParams(ilp);
+        }
+    }
+
+    /**
+     * Shows the already-set folder/file drawable centered (not stretched) inside the rectangle,
+     * with a neutral placeholder background behind it, rather than the cover-image crop style.
+     */
+    private void showDefaultGridIcon(final FilesystemViewerViewHolder holder, final int containerWidthPx) {
+        holder.image.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        final int pad = (int) (containerWidthPx * 0.22f);
+        holder.image.setPadding(pad, pad, pad, pad);
+        holder.imageFrame.setTag(R.id.opoc_filesystem_item__image_frame, "placeholder");
+    }
+
+    private void setGridCoverBitmap(final FilesystemViewerViewHolder holder, final Bitmap bmp) {
+        holder.image.clearColorFilter();
+        holder.image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        holder.image.setPadding(0, 0, 0, 0);
         holder.image.setImageBitmap(bmp);
+        holder.imageFrame.setTag(R.id.opoc_filesystem_item__image_frame, "cover");
+    }
+
+    /**
+     * Grid view only: shows a noticeable accent-colored highlight behind the icon/cover when the
+     * item is selected, instead of replacing the icon with a checkmark (which would hide a cover
+     * image). Falls back to the normal / placeholder background when not selected.
+     */
+    private void applyGridSelectionHighlight(final FilesystemViewerViewHolder holder, final boolean isSelected) {
+        if (holder.imageFrame == null) {
+            return;
+        }
+        if (isSelected) {
+            holder.imageFrame.setBackgroundResource(R.drawable.grid_item_bg_selected);
+        } else if ("placeholder".equals(holder.imageFrame.getTag(R.id.opoc_filesystem_item__image_frame))) {
+            holder.imageFrame.setBackgroundResource(R.drawable.grid_item_bg_placeholder);
+        } else {
+            holder.imageFrame.setBackgroundResource(R.drawable.grid_item_bg_normal);
+        }
     }
 
     private void loadFolder(final File folder, final File show) {
@@ -943,7 +1021,8 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         final boolean filterYes = isDirectory || _dopt.fileOverallFilter == null || _dopt.fileOverallFilter.callback(_context, file);
         final boolean dotYes = _dopt.sortOrder.showDotFiles || !name.startsWith(".") && !isAccessoryFolder(parent, name, file);
         final boolean selFileYes = _dopt.doSelectFile || isDirectory;
-        return filterYes && dotYes && selFileYes;
+        final boolean textYes = isDirectory || !_dopt.hideNonTextFiles || GsFileUtils.isTextFile(file);
+        return filterYes && dotYes && selFileYes && textYes;
     }
 
     public boolean accept(final File dir, final String filename) {
@@ -1024,6 +1103,11 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         final TextView title;
         final TextView description;
 
+        // Only present in grid mode's layout (opoc_filesystem_item_grid.xml) - null in list/detailed-list.
+        // Wraps the icon/cover ImageView so we can round its corners and show a selection highlight
+        // behind it without disturbing the image content itself.
+        final FrameLayout imageFrame;
+
         // Original (XML-defined) icon size for this holder's layout, so a cover image's custom
         // size can be reverted to normal when a recycled view is rebound to a non-cover item.
         final int defaultImageWidth;
@@ -1038,10 +1122,29 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             image = row.findViewById(R.id.opoc_filesystem_item__image);
             title = row.findViewById(R.id.opoc_filesystem_item__title);
             description = row.findViewById(R.id.opoc_filesystem_item__description);
+            imageFrame = row.findViewById(R.id.opoc_filesystem_item__image_frame);
 
             final ViewGroup.LayoutParams ilp = image.getLayoutParams();
             defaultImageWidth = ilp != null ? ilp.width : ViewGroup.LayoutParams.WRAP_CONTENT;
             defaultImageHeight = ilp != null ? ilp.height : ViewGroup.LayoutParams.WRAP_CONTENT;
+
+            // Make the icon/cover corners roundish (grid mode only - imageFrame is null elsewhere).
+            // Using an outline + clipToOutline (rather than baking rounding into a drawable) means
+            // this works correctly for both the placeholder background AND any bitmap content
+            // (folder icon, file icon, or a decoded cover photo) at whatever size is set later.
+            if (imageFrame != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                final int radiusPx = (int) (10 * row.getResources().getDisplayMetrics().density);
+                final ViewOutlineProvider provider = new ViewOutlineProvider() {
+                    @Override
+                    public void getOutline(View view, Outline outline) {
+                        outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radiusPx);
+                    }
+                };
+                image.setOutlineProvider(provider);
+                image.setClipToOutline(true);
+                imageFrame.setOutlineProvider(provider);
+                imageFrame.setClipToOutline(true);
+            }
         }
     }
 

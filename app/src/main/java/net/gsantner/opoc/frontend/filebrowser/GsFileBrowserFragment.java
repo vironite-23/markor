@@ -129,6 +129,7 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
 
         _dopt.viewMode = _appSettings.getFileBrowserViewMode(null); // global default; per-folder override applied in onFsViewerFolderLoad
         _dopt.gridColumns = _appSettings.getFileBrowserGridColumns();
+        _dopt.hideNonTextFiles = _appSettings.isFileBrowserHideNonTextFiles();
         applyViewMode();
 
         _filesystemViewerAdapter = new GsFileBrowserListAdapter(_dopt, activity);
@@ -347,8 +348,18 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
         _dopt.listener.onFsViewerConfig(_dopt);
         final File folder = getCurrentFolder();
         final Activity activity = getActivity();
-        if (_reloadRequiredOnResume && isVisible() && folder != null && activity != null) {
+
+        // Settings that can be changed on the Settings screen (which doesn't recreate this
+        // fragment) - re-read them here and force a reload if any of them actually changed.
+        final boolean prevHideNonTextFiles = _dopt.hideNonTextFiles;
+        _dopt.hideNonTextFiles = _appSettings.isFileBrowserHideNonTextFiles();
+        final boolean forceReload = prevHideNonTextFiles != _dopt.hideNonTextFiles;
+
+        if ((_reloadRequiredOnResume || forceReload) && isVisible() && folder != null && activity != null) {
             reloadCurrentFolder();
+        } else if (_filesystemViewerAdapter != null) {
+            // Cheap refresh (e.g. picks up a changed grid spacing/cover size) without a full reload.
+            _filesystemViewerAdapter.notifyDataSetChanged();
         }
         _reloadRequiredOnResume = true;
     }

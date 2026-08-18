@@ -96,6 +96,7 @@ public class GsFileBrowserOptions {
                 dismissAfterCallback = true;
 
         public GsFileUtils.SortOrder sortOrder = new GsFileUtils.SortOrder();
+        public boolean hideNonTextFiles = false;
 
         public FileBrowserViewMode viewMode = FileBrowserViewMode.DETAILED_LIST;
         public boolean viewModeIsFolderLocal = false;
