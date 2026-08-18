@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Hover highlight for grid icons/covers. Drawn as a foreground so it remains visible over images. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#12000000" />
+    <stroke
+        android:width="1dp"
+        android:color="@color/accent" />
+    <corners android:radius="10dp" />
+</shape>
