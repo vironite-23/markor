@@ -391,6 +391,25 @@ public class AppSettings extends GsSharedPreferencesPropertyBackend {
     public int getGridCoverImageHeightDp() {
         return parsePositiveIntOrDefault(getString(R.string.pref_key__grid_cover_height_dp, "88"), 88);
     }
+    public int getGridItemPaddingDp() {
+        return Math.max(0, getInt(R.string.pref_key__grid_item_padding_dp, 4));
+    }
+
+    public boolean isHideNonTextFiles() {
+        return getBool(R.string.pref_key__hide_non_text_files, false);
+    }
+
+    public String getEditorBackgroundImageUri() {
+        return getString(R.string.pref_key__editor_background_image, "");
+    }
+
+    public int getEditorBackgroundBlur() {
+        return Math.max(0, Math.min(30, getInt(R.string.pref_key__editor_background_blur, 0)));
+    }
+
+    public int getEditorBackgroundDarkness() {
+        return Math.max(0, Math.min(90, getInt(R.string.pref_key__editor_background_darkness, 0)));
+    }
 
     private static int parsePositiveIntOrDefault(final String value, final int defaultValue) {
         try {
