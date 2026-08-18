@@ -39,6 +39,7 @@ import net.gsantner.opoc.frontend.base.GsActivityBase;
 import net.gsantner.opoc.frontend.base.GsPreferenceFragmentBase;
 import net.gsantner.opoc.frontend.filebrowser.GsFileBrowserOptions;
 import net.gsantner.opoc.frontend.settings.GsFontPreferenceCompat;
+import net.gsantner.opoc.format.GsTextUtils;
 import net.gsantner.opoc.util.GsContextUtils;
 
 import java.io.File;
@@ -71,7 +72,13 @@ public class SettingsActivity extends MarkorBaseActivity {
         toolbar = findViewById(R.id.toolbar);
 
         // Custom code
-        GsFontPreferenceCompat.additionalyCheckedFolder = new File(_appSettings.getNotebookDirectory(), ".app/fonts");
+        final File newAdditionalFontFolder = new File(_appSettings.getNotebookDirectory(), ".app/fonts");
+        if (!newAdditionalFontFolder.equals(GsFontPreferenceCompat.additionalyCheckedFolder)) {
+            // The notebook directory (and therefore the additional font folder) changed since
+            // the font list was cached - drop the cache so the new folder's fonts are picked up.
+            GsFontPreferenceCompat.resetFontCache();
+        }
+        GsFontPreferenceCompat.additionalyCheckedFolder = newAdditionalFontFolder;
         iconColor = _cu.rcolor(this, R.color.primary_text);
         toolbar.setTitle(R.string.settings);
         setSupportActionBar(findViewById(R.id.toolbar));
@@ -172,6 +179,11 @@ public class SettingsActivity extends MarkorBaseActivity {
             updateSummary(R.string.pref_key__exts_to_always_open_in_this_app, _appSettings.getString(R.string.pref_key__exts_to_always_open_in_this_app, ""));
 
             updateSummary(R.string.pref_key__snippet_directory_path, _appSettings.getSnippetsDirectory().getAbsolutePath());
+
+            final String bgImagePath = _appSettings.getEditorBackgroundImagePath();
+            updateSummary(R.string.pref_key__editor_background_image_path,
+                    GsTextUtils.isNullOrEmpty(bgImagePath) ? getString(R.string.none) : bgImagePath.replace(remove, "")
+            );
 
             final String fileDescFormat = _appSettings.getString(R.string.pref_key__file_description_format, "");
             if (fileDescFormat.equals("")) {
@@ -322,6 +334,24 @@ public class SettingsActivity extends MarkorBaseActivity {
                             dopt.newDirButtonEnable = false;
                         }
                     }, fragManager, getActivity(), MarkorFileBrowserFactory.IsMimeText);
+                    return true;
+                }
+                case R.string.pref_key__editor_background_image_path: {
+                    MarkorFileBrowserFactory.showFileDialog(new GsFileBrowserOptions.SelectionListenerAdapter() {
+                        @Override
+                        public void onFsViewerSelected(String request, File file, final Integer lineNumber) {
+                            _appSettings.setEditorBackgroundImagePath(file.getAbsolutePath());
+                            _appSettings.setEditorBackgroundEnabled(true);
+                            doUpdatePreferences();
+                        }
+
+                        @Override
+                        public void onFsViewerConfig(GsFileBrowserOptions.Options dopt) {
+                            dopt.titleText = R.string.editor_background_image_path;
+                            dopt.rootFolder = _appSettings.getNotebookDirectory();
+                            dopt.newDirButtonEnable = false;
+                        }
+                    }, fragManager, getActivity(), MarkorFileBrowserFactory.IsMimeImage);
                     return true;
                 }
                 case R.string.pref_key__basic_color_scheme_markor: {

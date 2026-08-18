@@ -18,6 +18,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
+import android.util.LruCache;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -38,6 +39,7 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.HorizontalScrollView;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -121,6 +123,8 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
     private MarkorWebViewClient _webViewClient;
     private ViewGroup _editorHolder;
     private ViewGroup _textActionsBar;
+    private ImageView _editorBackgroundImage;
+    private View _editorBackgroundScrim;
 
     private DraggableScrollbarScrollView _verticalScrollView;
     private HorizontalScrollView _horizontalScrollView;
@@ -179,6 +183,8 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
         _webViewStub = view.findViewById(R.id.document__fragment_webview_stub);
         _verticalScrollView = view.findViewById(R.id.document__fragment__edit__content_editor__scrolling_parent);
         _lineNumbersView = view.findViewById(R.id.document__fragment__edit__line_numbers_view);
+        _editorBackgroundImage = view.findViewById(R.id.document__fragment__edit__background_image);
+        _editorBackgroundScrim = view.findViewById(R.id.document__fragment__edit__background_scrim);
         _cu = new MarkorContextUtils(activity);
         _editTextUndoRedoHelper = new TextViewUndoRedo();
         _editorHolder.setOnClickListener(v -> {
@@ -227,6 +233,7 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
         final int editorBackgroundColor = _appSettings.getEditorBackgroundColor();
         _hlEditor.setBackgroundColor(editorBackgroundColor);
         _editorHolder.setBackgroundColor(editorBackgroundColor);
+        applyEditorBackgroundImage();
         _hlEditor.setTextColor(_appSettings.getEditorForegroundColor());
         _hlEditor.setGravity(_appSettings.isEditorStartEditingInCenter() ? Gravity.CENTER : Gravity.NO_GRAVITY);
         _hlEditor.setHighlightingEnabled(_appSettings.getDocumentHighlightState(_document.path, _hlEditor.getText()));
@@ -276,6 +283,112 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
             });
         }
 
+    }
+
+    // Small in-memory cache for the (decode + blur) result, keyed by path+mtime+blur amount,
+    // so switching documents or briefly leaving/returning doesn't repeat the work.
+    private static final ExecutorService EDITOR_BG_EXECUTOR = Executors.newSingleThreadExecutor();
+    private static final LruCache<String, Bitmap> EDITOR_BG_CACHE = new LruCache<>(4);
+
+    /**
+     * Applies (or clears) the user-configurable custom editor background image, with blur and
+     * a darkness overlay, per {@link AppSettings#isEditorBackgroundEnabled()} /
+     * {@link AppSettings#getEditorBackgroundImagePath()} /
+     * {@link AppSettings#getEditorBackgroundBlur()} / {@link AppSettings#getEditorBackgroundDarkness()}.
+     * <p>
+     * When enabled, the editor's own solid background color is made transparent so the image
+     * (sitting behind it in the layout) shows through; when disabled, the solid color is restored.
+     */
+    private void applyEditorBackgroundImage() {
+        if (_editorBackgroundImage == null || _editorBackgroundScrim == null || _hlEditor == null || _editorHolder == null) {
+            return;
+        }
+
+        final boolean enabled = _appSettings.isEditorBackgroundEnabled();
+        final String path = _appSettings.getEditorBackgroundImagePath();
+        final File imageFile = TextUtils.isEmpty(path) ? null : new File(path);
+
+        if (!enabled || imageFile == null || !imageFile.isFile()) {
+            _editorBackgroundImage.setVisibility(View.GONE);
+            _editorBackgroundImage.setImageDrawable(null);
+            _editorBackgroundScrim.setVisibility(View.GONE);
+            // Restore the normal opaque background in case it was previously made
+            // transparent for a background image.
+            final int bg = _appSettings.getEditorBackgroundColor();
+            _hlEditor.setBackgroundColor(bg);
+            _editorHolder.setBackgroundColor(bg);
+            return;
+        }
+
+        final int blur = _appSettings.getEditorBackgroundBlur();
+        final int darknessPercent = _appSettings.getEditorBackgroundDarkness();
+        final String cacheKey = imageFile.getAbsolutePath() + ":" + imageFile.lastModified() + ":" + blur;
+
+        // The darkness overlay is a separate, cheap view so it updates instantly without
+        // needing to re-decode or re-blur the image.
+        _editorBackgroundScrim.setAlpha(darknessPercent / 100f);
+        _editorBackgroundScrim.setVisibility(View.VISIBLE);
+
+        final Bitmap cached = EDITOR_BG_CACHE.get(cacheKey);
+        if (cached != null) {
+            showEditorBackgroundBitmap(cached);
+            return;
+        }
+
+        try {
+            EDITOR_BG_EXECUTOR.execute(() -> {
+                final Bitmap raw = GsContextUtils.instance.loadImageFromFilesystem(imageFile, 1600);
+                final Bitmap blurred = raw == null ? null : cheapBlur(raw, blur);
+                if (blurred != null) {
+                    EDITOR_BG_CACHE.put(cacheKey, blurred);
+                }
+                if (_hlEditor == null) {
+                    return; // fragment view already torn down by the time this completes
+                }
+                _hlEditor.post(() -> {
+                    // Only apply if this is still the currently-configured background image
+                    // (the user may have picked a different one, or disabled it, meanwhile).
+                    if (blurred != null && imageFile.getAbsolutePath().equals(_appSettings.getEditorBackgroundImagePath())) {
+                        showEditorBackgroundBitmap(blurred);
+                    }
+                });
+            });
+        } catch (Exception ignored) {
+            // Decoding failed / executor rejected the task - editor simply keeps its solid
+            // background color until the next time this method runs (e.g. next onResume).
+        }
+    }
+
+    private void showEditorBackgroundBitmap(final Bitmap bmp) {
+        if (_editorBackgroundImage == null) {
+            return;
+        }
+        _editorBackgroundImage.setImageBitmap(bmp);
+        _editorBackgroundImage.setVisibility(View.VISIBLE);
+        // Let the image show through - the editor's own solid background would otherwise paint over it.
+        _hlEditor.setBackgroundColor(Color.TRANSPARENT);
+        _editorHolder.setBackgroundColor(Color.TRANSPARENT);
+    }
+
+    /**
+     * Cheap, dependency-free blur: downscale then upscale with bilinear filtering. Higher
+     * {@code blurAmount} (Settings range: 0-25) shrinks the intermediate bitmap more, producing
+     * a stronger blur. Avoids RenderScript (deprecated) / RenderEffect (API 31+ only), so it
+     * works across this app's full minSdk range.
+     */
+    private static Bitmap cheapBlur(final Bitmap src, final int blurAmount) {
+        if (blurAmount <= 0) {
+            return src;
+        }
+        final float scale = 1f / (1f + blurAmount * 0.6f);
+        final int w = Math.max(1, Math.round(src.getWidth() * scale));
+        final int h = Math.max(1, Math.round(src.getHeight() * scale));
+        final Bitmap small = Bitmap.createScaledBitmap(src, w, h, true);
+        final Bitmap result = Bitmap.createScaledBitmap(small, src.getWidth(), src.getHeight(), true);
+        if (small != result) {
+            small.recycle();
+        }
+        return result;
     }
 
     @Override
@@ -348,6 +461,7 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
         if (_editTextUndoRedoHelper != null && _editTextUndoRedoHelper.getTextView() != _hlEditor) {
             _editTextUndoRedoHelper.setTextView(_hlEditor);
         }
+        applyEditorBackgroundImage();
         super.onResume();
     }
 
