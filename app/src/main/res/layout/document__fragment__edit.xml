@@ -21,6 +21,27 @@
         tools:context="net.gsantner.markor.activity.DocumentEditAndViewFragment"
         tools:showIn="@layout/document__activity">
 
+    <!-- Custom editor background image (Settings > Editor > Custom editor background).
+         Sits behind everything else in this FrameLayout; hidden (GONE) unless enabled.
+         The blur is baked into the bitmap itself (see DocumentEditAndViewFragment); the
+         darkness scrim on top of it is a plain semi-transparent view so its alpha can be
+         adjusted instantly without re-decoding/re-blurring the image. -->
+    <ImageView
+        android:id="@+id/document__fragment__edit__background_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        android:visibility="gone"
+        tools:ignore="ContentDescription" />
+
+    <View
+        android:id="@+id/document__fragment__edit__background_scrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/black"
+        android:visibility="gone" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -122,7 +143,7 @@
          for the logic that persists which file + scroll position per folder. -->
     <include
         layout="@layout/document__sidepanel_text_viewer"
-        android:layout_width="400dp"
+        android:layout_width="380dp"
         android:layout_height="match_parent"
         android:layout_gravity="end" />
 
@@ -130,7 +151,7 @@
          edited. Width is set to half the editor's width at runtime (see setupSidePanel()). -->
     <include
         layout="@layout/document__sidepanel_file_list"
-        android:layout_width="200dp"
+        android:layout_width="220dp"
         android:layout_height="match_parent"
         android:layout_gravity="start" />
 
