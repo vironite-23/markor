@@ -358,7 +358,9 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
         if ((_reloadRequiredOnResume || forceReload) && isVisible() && folder != null && activity != null) {
             reloadCurrentFolder();
         } else if (_filesystemViewerAdapter != null) {
-            // Cheap refresh (e.g. picks up a changed grid spacing/cover size) without a full reload.
+            // Cheap refresh (e.g. picks up changed grid spacing/cover size/side padding)
+            // without a full directory reload.
+            applyGridSidePadding();
             _filesystemViewerAdapter.notifyDataSetChanged();
         }
         _reloadRequiredOnResume = true;
@@ -792,6 +794,24 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
         applyViewMode();
     }
 
+    private void applyGridSidePadding() {
+        if (_recyclerList == null || getActivity() == null) {
+            return;
+        }
+
+        final int sidePadding;
+        if (_dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.GRID) {
+            final float density = getResources().getDisplayMetrics().density;
+            sidePadding = (int) (AppSettings.get(getActivity()).getGridSidePaddingDp() * density);
+        } else {
+            sidePadding = 0;
+        }
+
+        _recyclerList.setPadding(sidePadding, _recyclerList.getPaddingTop(),
+                sidePadding, _recyclerList.getPaddingBottom());
+        _recyclerList.setClipToPadding(_dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.GRID);
+    }
+
     /**
      * Applies _dopt.viewMode / _dopt.gridColumns to the RecyclerView: swaps in the right
      * LayoutManager, keeps the adapter's cached LayoutManager reference in sync (needed for
@@ -805,11 +825,18 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
 
         if (_dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.GRID) {
             _recyclerList.setLayoutManager(new GridLayoutManager(activity, Math.max(1, _dopt.gridColumns)));
+
+            // Keep the first/last grid columns away from the screen edges independently from
+            // the per-cell icon gap.
+            applyGridSidePadding();
+
             if (_fileListDivider != null) {
                 _recyclerList.removeItemDecoration(_fileListDivider);
             }
         } else {
             _recyclerList.setLayoutManager(new LinearLayoutManager(activity));
+            _recyclerList.setPadding(0, _recyclerList.getPaddingTop(), 0, _recyclerList.getPaddingBottom());
+            _recyclerList.setClipToPadding(true);
             if (_fileListDivider != null) {
                 _recyclerList.removeItemDecoration(_fileListDivider); // no-op if not currently added
                 _recyclerList.addItemDecoration(_fileListDivider);

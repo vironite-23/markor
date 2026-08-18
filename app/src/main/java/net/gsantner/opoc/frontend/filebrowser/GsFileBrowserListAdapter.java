@@ -35,7 +35,6 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -269,6 +268,10 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             holder.image.setImageResource(_dopt.selectedItemImage);
         } else if (_dopt.iconMaps != null && _dopt.iconMaps.containsKey(displayFile)) {
             holder.image.setImageResource(_dopt.iconMaps.get(displayFile));
+        } else if (!isFile && !isGridMode && _dopt.hideGenericFolderIconInList) {
+            // The notebook's list already has directory navigation in the toolbar. Do not repeat
+            // the generic folder/choose-directory icon on every folder row.
+            holder.image.setImageDrawable(null);
         } else {
             holder.image.setImageResource(isFile ? _dopt.fileImage : _dopt.folderImage);
         }
@@ -296,8 +299,8 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
 
         // Some extras
         if (isGridMode) {
-            // Gap between grid items (configurable in Settings) - smaller gap leaves more room
-            // for the icon/cover inside each cell, making it appear bigger.
+            // Gap between grid items is independent from the outer list padding. This lets the
+            // icon/cover remain large while keeping the first/last column away from screen edges.
             final int gapPx = (int) (AppSettings.get(_context).getGridSpacingDp() * _context.getResources().getDisplayMetrics().density);
             holder.itemRoot.setPadding(gapPx, gapPx, gapPx, gapPx / 2);
         } else if (_dopt.itemSidePadding > 0) {
@@ -307,17 +310,37 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
 
         final int descriptionRes = isSelected ? _dopt.contentDescriptionSelected : (displayFile.isDirectory() ? _dopt.contentDescriptionFolder : _dopt.contentDescriptionFile);
         holder.itemRoot.setContentDescription((descriptionRes != 0 ? (_context.getString(descriptionRes) + " ") : "") + titleText + " " + holder.description.getText().toString());
+        // Reset recycled hover state, then highlight both the icon and title while the pointer
+        // is over either one. This is mainly useful for mouse/trackpad use in grid mode.
+        holder.itemRoot.setTag(new TagContainer(displayFile, position));
+        setGridHoverState(holder, false);
+        if (isGridMode) {
+            final View.OnHoverListener hoverListener = (view, event) -> {
+                if (event.getAction() == android.view.MotionEvent.ACTION_HOVER_ENTER) {
+                    setGridHoverState(holder, true);
+                } else if (event.getAction() == android.view.MotionEvent.ACTION_HOVER_EXIT) {
+                    setGridHoverState(holder, false);
+                }
+                return false;
+            };
+            holder.itemRoot.setOnHoverListener(hoverListener);
+            holder.image.setOnHoverListener(hoverListener);
+            holder.title.setOnHoverListener(hoverListener);
+        } else {
+            holder.itemRoot.setOnHoverListener(null);
+            holder.image.setOnHoverListener(null);
+            holder.title.setOnHoverListener(null);
+        }
+
+        // In grid mode a long-press on the icon is a selection gesture, not a directory/open
+        // gesture and not a diagnostic toast. The normal tap still opens the folder/file.
         holder.image.setOnLongClickListener(view -> {
-            Toast.makeText(_context, displayFile.getAbsolutePath(), Toast.LENGTH_SHORT).show();
+            toggleSelection(new TagContainer(displayFile, position));
+            _dopt.listener.onFsViewerItemLongPressed(displayFile, _dopt.doSelectMultiple);
             return true;
         });
-        // Bugfix: setOnLongClickListener makes the ImageView consume the whole touch sequence
-        // (needed to detect the long-press), which silently swallowed ordinary taps on the icon
-        // too - so tapping it never reached itemRoot's click handler that opens the folder.
-        // Most noticeable in grid view, where the icon/cover is the main tap target.
         holder.image.setOnClickListener(view -> onClick(holder.itemRoot));
 
-        holder.itemRoot.setTag(new TagContainer(displayFile, position));
         holder.itemRoot.setOnClickListener(this);
         holder.itemRoot.setOnLongClickListener(this);
     }
@@ -859,13 +882,41 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         if (holder.imageFrame == null) {
             return;
         }
-        if (isSelected) {
-            holder.imageFrame.setBackgroundResource(R.drawable.grid_item_bg_selected);
-        } else if ("placeholder".equals(holder.imageFrame.getTag(R.id.opoc_filesystem_item__image_frame))) {
+
+        // Keep the normal/placeholder background underneath the image, but put the selection
+        // drawable in the FrameLayout foreground so its stroke is drawn ON TOP of the icon/cover.
+        // Previously it was a background and could be completely covered by the ImageView.
+        if ("placeholder".equals(holder.imageFrame.getTag(R.id.opoc_filesystem_item__image_frame))) {
             holder.imageFrame.setBackgroundResource(R.drawable.grid_item_bg_placeholder);
         } else {
             holder.imageFrame.setBackgroundResource(R.drawable.grid_item_bg_normal);
         }
+
+        if (isSelected) {
+            holder.imageFrame.setForeground(ContextCompat.getDrawable(_context, R.drawable.grid_item_bg_selected));
+        } else {
+            holder.imageFrame.setForeground(null);
+        }
+    }
+
+    private void setGridHoverState(final FilesystemViewerViewHolder holder, final boolean hovered) {
+        if (holder.imageFrame == null || _dopt.viewMode != GsFileBrowserOptions.FileBrowserViewMode.GRID) {
+            return;
+        }
+
+        final boolean selected = _currentSelection.contains(
+                holder.itemRoot.getTag() instanceof TagContainer
+                        ? ((TagContainer) holder.itemRoot.getTag()).file : null);
+        if (selected) {
+            holder.imageFrame.setForeground(ContextCompat.getDrawable(_context, R.drawable.grid_item_bg_selected));
+        } else if (hovered) {
+            holder.imageFrame.setForeground(ContextCompat.getDrawable(_context, R.drawable.grid_item_bg_hover));
+        } else {
+            holder.imageFrame.setForeground(null);
+        }
+
+        holder.title.setTextColor(ContextCompat.getColor(
+                _context, hovered ? _dopt.accentColor : _dopt.primaryTextColor));
     }
 
     private void loadFolder(final File folder, final File show) {
@@ -873,24 +924,37 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             return;
         }
 
-        final boolean folderChanged = !folder.equals(_currentFolder);
+        final File previousFolder = _currentFolder;
+        final boolean folderChanged = !folder.equals(previousFolder);
 
-        if (folderChanged && _currentFolder != null && _layoutManager != null) {
-            _folderScrollMap.put(_currentFolder, _layoutManager.onSaveInstanceState());
+        if (folderChanged && previousFolder != null && _layoutManager != null) {
+            _folderScrollMap.put(previousFolder, _layoutManager.onSaveInstanceState());
         }
 
-        // Update current folder
+        // Update current folder. Keep a snapshot because loading happens asynchronously; reading
+        // the mutable _currentFolder from the worker allowed a fast open/close sequence to apply
+        // stale results to the newly selected folder.
         if (GO_BACK_SIGNIFIER == folder) {
             _currentFolder = _backStack.pop();
         } else {
-            if (folderChanged && _currentFolder != null) {
-                _backStack.push(_currentFolder);
+            if (folderChanged && previousFolder != null) {
+                _backStack.push(previousFolder);
             }
             _currentFolder = resolveVirtualFile(folder);
         }
 
         if (folderChanged) {
             _currentSelection.clear();
+
+            // Clear the old folder immediately. Without this, RecyclerView keeps drawing the old
+            // main-page contents until the background directory scan finishes, causing a visible
+            // flash of the main page when opening a folder and of the first rows when closing it.
+            _adapterData.clear();
+            _adapterDataFiltered.clear();
+            _goUpFile = null;
+            _fileIdMap.clear();
+            notifyDataSetChanged();
+
             rebindFolderObserver();
         }
 
@@ -900,12 +964,13 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             updateVirtualFolders();
         }
 
-        if (_currentFolder != null) {
+        final File targetFolder = _currentFolder;
+        if (targetFolder != null) {
             final File toShow = show == null ? _fileToShowAfterNextLoad : show;
             _fileToShowAfterNextLoad = null;
 
             try {
-                executorService.execute(() -> _loadFolder(folderChanged, toShow));
+                executorService.execute(() -> _loadFolder(targetFolder, folderChanged, toShow));
             } catch (RejectedExecutionException err) { // during exit
                 Log.d(GsFileBrowserListAdapter.class.getName(), err.toString());
             }
@@ -913,14 +978,14 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
     }
 
     // This function is not called on the main thread
-    private synchronized void _loadFolder(final boolean folderChanged, final @Nullable File toShow) {
+    private synchronized void _loadFolder(final File targetFolder, final boolean folderChanged, final @Nullable File toShow) {
 
         final List<File> newData = new ArrayList<>();
 
         // Make sure /storage/emulated/0 is browsable, even though filesystem says it's not accessible
-        if (_currentFolder.equals(new File("/"))) {
+        if (targetFolder.equals(new File("/"))) {
             newData.add(VIRTUAL_STORAGE_ROOT);
-        } else if (_currentFolder.equals(VIRTUAL_STORAGE_ROOT)) {
+        } else if (targetFolder.equals(VIRTUAL_STORAGE_ROOT)) {
             newData.addAll(_virtualMapping.keySet());
 
             // SD Card and other external storage directories that are also not listable
@@ -931,25 +996,25 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                 }
                 newData.add(f);
             }
-        } else if (_currentFolder.equals(VIRTUAL_STORAGE_EMULATED)) {
-            newData.add(new File(_currentFolder, "" + _userId));
-        } else if (_currentFolder.equals(VIRTUAL_STORAGE_RECENTS)) {
+        } else if (targetFolder.equals(VIRTUAL_STORAGE_EMULATED)) {
+            newData.add(new File(targetFolder, "" + _userId));
+        } else if (targetFolder.equals(VIRTUAL_STORAGE_RECENTS)) {
             newData.addAll(_dopt.recentFiles);
-        } else if (_currentFolder.equals(VIRTUAL_STORAGE_POPULAR)) {
+        } else if (targetFolder.equals(VIRTUAL_STORAGE_POPULAR)) {
             newData.addAll(_dopt.popularFiles);
-        } else if (_currentFolder.equals(VIRTUAL_STORAGE_FAVOURITE)) {
+        } else if (targetFolder.equals(VIRTUAL_STORAGE_FAVOURITE)) {
             newData.addAll(_dopt.favouriteFiles);
         }
 
-        if (_currentFolder.isDirectory() && _currentFolder.canRead()) {
-            GsCollectionUtils.addAll(newData, _currentFolder.listFiles());
+        if (targetFolder.isDirectory() && targetFolder.canRead()) {
+            GsCollectionUtils.addAll(newData, targetFolder.listFiles());
         }
 
         GsCollectionUtils.keepIf(newData, this::accept);
         GsCollectionUtils.deduplicate(newData);
 
         // Don't sort recent or virtual root items - use the default order
-        if (isCurrentFolderSortable()) {
+        if (isFolderSortable(targetFolder)) {
             GsFileUtils.sortFiles(newData, _dopt.sortOrder);
         }
 
@@ -957,13 +1022,19 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         final long modSum = GsCollectionUtils.accumulate(newData, (f, s) -> s + f.lastModified(), 0L);
         final boolean modSumChanged = modSum != _prevModSum;
 
-        final File goUp = getCurrentParent();
+        final File goUp = getParentForFolder(targetFolder);
 
         if (folderChanged || modSumChanged || !newData.equals(_adapterData)) {
             final ArrayList<File> filteredData = new ArrayList<>();
             _filter._filter(newData, filteredData);
 
             _recyclerView.post(() -> {
+                // A newer navigation may have happened while this directory was being scanned.
+                // Never let an older worker overwrite the current folder.
+                if (_currentFolder == null || !targetFolder.equals(_currentFolder)) {
+                    return;
+                }
+
                 // Modify all these values in the UI thread
                 _goUpFile = goUp;
                 _adapterData.clear();
@@ -1001,7 +1072,9 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                 }
             });
         } else {
-            postScrollToAndFlash(toShow);
+            if (_currentFolder != null && targetFolder.equals(_currentFolder)) {
+                postScrollToAndFlash(toShow);
+            }
         }
     }
 
@@ -1174,8 +1247,29 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         }
     }
 
+    private boolean isFolderSortable(final File folder) {
+        return folder != null && !VIRTUAL_STORAGE_ROOT.equals(folder) && !VIRTUAL_STORAGE_RECENTS.equals(folder);
+    }
+
+    private File getParentForFolder(final File folder) {
+        if (folder == null) {
+            return null;
+        }
+
+        final File parent = folder.getParentFile();
+        if ((parent != null && parent.canWrite()) || GsFileUtils.isChild(VIRTUAL_STORAGE_ROOT, parent)) {
+            return parent;
+        }
+
+        if (VIRTUAL_STORAGE_ROOT.equals(parent) || _virtualMapping.containsValue(folder)) {
+            return VIRTUAL_STORAGE_ROOT;
+        }
+
+        return null;
+    }
+
     public boolean isCurrentFolderSortable() {
-        return _currentFolder != null && !VIRTUAL_STORAGE_ROOT.equals(_currentFolder) && !VIRTUAL_STORAGE_RECENTS.equals(_currentFolder);
+        return isFolderSortable(_currentFolder);
     }
 
     public File resolveVirtualFile(final File file) {

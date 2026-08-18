@@ -84,6 +84,10 @@ public class GsFileBrowserOptions {
 
         public int itemSidePadding = 16; // dp
 
+        // Main notebook list can omit the generic folder/choose-directory icon. Grid mode keeps
+        // folder icons because they are part of the visual grid.
+        public boolean hideGenericFolderIconInList = false;
+
         // Visibility of elements
         public boolean
                 utilsBarEnable = true,
