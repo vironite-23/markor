@@ -24,7 +24,13 @@ import net.gsantner.opoc.wrapper.GsCallback;
 import java.io.File;
 
 public class MarkorFileBrowserFactory {
-    public static GsCallback.b2<Context, File> IsMimeText = (context, file) -> file != null && GsContextUtils.instance.getMimeType(context, file).startsWith("text/");
+    public static GsCallback.b2<Context, File> IsMimeText = (context, file) -> {
+        if (file == null || !file.isFile()) {
+            return true;
+        }
+        final String mime = GsContextUtils.instance.getMimeType(context, file);
+        return mime != null && mime.startsWith("text/");
+    };
     public static GsCallback.b2<Context, File> IsMimeImage = (context, file) -> file != null && GsContextUtils.instance.getMimeType(context, file).startsWith("image/");
     public static GsCallback.b2<Context, File> IsMimeAudio = (context, file) -> file != null && GsContextUtils.instance.getMimeType(context, file).startsWith("audio/");
     public static GsCallback.b2<Context, File> IsMimeVideo = (context, file) -> file != null && GsContextUtils.instance.getMimeType(context, file).startsWith("video/");
@@ -71,6 +77,10 @@ public class MarkorFileBrowserFactory {
         opts.titleText = R.string.select;
         opts.mountedStorageFolder = cu.getStorageAccessFolder(context);
         opts.sortOrder = appSettings.getFolderSortOrder(null);
+
+        // The main notebook browser can optionally hide binary/non-text files. Specific
+        // file-pickers (e.g. the editor background image picker) replace this filter below.
+        opts.fileOverallFilter = appSettings.isHideNonTextFiles() ? IsMimeText : null;
 
         updateFsViewerOpts(opts, context);
 
