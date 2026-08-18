@@ -68,24 +68,47 @@ public class GsFontPreferenceCompat extends ListPreference {
 
     public GsFontPreferenceCompat(Context context) {
         super(context);
-        loadFonts(context, null);
+        initializeWithoutScanning(context, null);
     }
 
     public GsFontPreferenceCompat(Context context, AttributeSet attrs) {
         super(context, attrs);
-        loadFonts(context, attrs);
+        initializeWithoutScanning(context, attrs);
     }
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public GsFontPreferenceCompat(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        loadFonts(context, attrs);
+        initializeWithoutScanning(context, attrs);
     }
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public GsFontPreferenceCompat(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
-        loadFonts(context, attrs);
+        initializeWithoutScanning(context, attrs);
+    }
+
+    private void initializeWithoutScanning(Context context, @Nullable AttributeSet attrs) {
+        _defaultValue = _fontValues[0];
+        if (attrs != null) {
+            for (int i = 0; i < attrs.getAttributeCount(); i++) {
+                String attrName = attrs.getAttributeName(i);
+                String attrValue = attrs.getAttributeValue(i);
+                if (attrName.equalsIgnoreCase("defaultValue")) {
+                    if (attrValue.startsWith("@")) {
+                        int resId = Integer.valueOf(attrValue.substring(1));
+                        attrValue = getContext().getString(resId);
+                    }
+                    _defaultValue = attrValue;
+                    break;
+                }
+            }
+        }
+
+        // Do not scan storage or create Typefaces here. AndroidX Preference inflates nested
+        // PreferenceScreens eagerly, so doing filesystem/native font work in this constructor
+        // makes opening the top-level Settings screen unexpectedly expensive.
+        setDefaultValue(_defaultValue);
     }
 
     private void loadFonts(Context context) {
@@ -115,22 +138,6 @@ public class GsFontPreferenceCompat extends ListPreference {
     }
 
     private void loadFonts(Context context, @Nullable AttributeSet attrs) {
-        _defaultValue = _fontValues[0];
-        if (attrs != null) {
-            for (int i = 0; i < attrs.getAttributeCount(); i++) {
-                String attrName = attrs.getAttributeName(i);
-                String attrValue = attrs.getAttributeValue(i);
-                if (attrName.equalsIgnoreCase("defaultValue")) {
-                    if (attrValue.startsWith("@")) {
-                        int resId = Integer.valueOf(attrValue.substring(1));
-                        attrValue = getContext().getString(resId);
-                    }
-                    _defaultValue = attrValue;
-                    break;
-                }
-            }
-        }
-
         synchronized (GsFontPreferenceCompat.class) {
             if (_cachedFontNames == null || _cachedFontValues == null || _cachedFontText == null) {
                 String[] names = _fontNames;
@@ -179,6 +186,21 @@ public class GsFontPreferenceCompat extends ListPreference {
                 return typeface(context, "sans-serif-regular", typefaceStyle);
             }
         }
+    }
+
+    @Override
+    protected void onClick() {
+        // The expensive directory scan and Typeface creation happen only when the user
+        // actually opens the font chooser.
+        if (_cachedFontNames == null || _cachedFontValues == null || _cachedFontText == null) {
+            loadFonts(getContext());
+        } else {
+            _fontNames = _cachedFontNames;
+            _fontValues = _cachedFontValues;
+            setEntries(_cachedFontText);
+            setEntryValues(_fontValues);
+        }
+        super.onClick();
     }
 
     @Override
