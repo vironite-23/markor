@@ -344,6 +344,8 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="grid_cover_height_dp">Cover height (dp)</string>
     <string name="grid_spacing_dp">Grid icon gap (dp)</string>
     <string name="grid_spacing_dp_description">Spacing between icons in grid view. Reduce it to make icons appear bigger</string>
+    <string name="grid_side_padding_dp">Grid side padding (dp)</string>
+    <string name="grid_side_padding_dp_description">Extra left and right padding for the grid. Increase it to keep icons away from the screen edges</string>
     <string name="file_browser_hide_non_text_files">Hide non-text files</string>
     <string name="file_browser_hide_non_text_files_description">Only show text/markup files (and folders) in the file browser</string>
     <string name="editor_background_enabled">Custom editor background</string>
