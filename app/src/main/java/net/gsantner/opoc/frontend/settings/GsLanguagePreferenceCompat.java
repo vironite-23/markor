@@ -105,6 +105,17 @@ public class GsLanguagePreferenceCompat extends ListPreference {
     }
 
 
+    // Bugfix (Settings taking a very long time / sometimes ANR-crashing to open):
+    // Like GsFontPreferenceCompat, this preference is re-instantiated - and this whole method
+    // re-run synchronously on the UI thread - every single time the Settings screen is opened,
+    // because androidx.preference eagerly inflates every preference declared in the XML,
+    // including ones inside nested, not-yet-visible <PreferenceScreen> blocks. Building each
+    // locale's display name calls into ICU (Locale#getDisplayLanguage/getDisplayCountry), which
+    // is not free, and there can be 100+ bundled locales, so doing this on every open adds up.
+    // The result is constant for the lifetime of the process, so cache it once instead.
+    private static String[] _cachedEntries = null;
+    private static String[] _cachedEntryValues = null;
+
     private void loadLangs(Context context) {
         loadLangs(context, null);
     }
@@ -112,34 +123,41 @@ public class GsLanguagePreferenceCompat extends ListPreference {
     private void loadLangs(Context context, @Nullable AttributeSet attrs) {
         setDefaultValue(SYSTEM_LANGUAGE_CODE);
 
-        // Fetch readable details
-        GsContextUtils contextUtils = GsContextUtils.instance;
-        List<String> languages = new ArrayList<>();
-        Object bcof = contextUtils.getBuildConfigValue(getContext(), "DETECTED_ANDROID_LOCALES");
-        if (bcof instanceof String[]) {
-            for (String langId : (String[]) bcof) {
-                Locale locale = contextUtils.getLocaleByAndroidCode(langId);
-                languages.add(summarizeLocale(locale, langId) + ";" + langId);
+        synchronized (GsLanguagePreferenceCompat.class) {
+            if (_cachedEntries == null || _cachedEntryValues == null) {
+                // Fetch readable details
+                GsContextUtils contextUtils = GsContextUtils.instance;
+                List<String> languages = new ArrayList<>();
+                Object bcof = contextUtils.getBuildConfigValue(getContext(), "DETECTED_ANDROID_LOCALES");
+                if (bcof instanceof String[]) {
+                    for (String langId : (String[]) bcof) {
+                        Locale locale = contextUtils.getLocaleByAndroidCode(langId);
+                        languages.add(summarizeLocale(locale, langId) + ";" + langId);
+                    }
+                }
+
+                // Sort languages naturally
+                Collections.sort(languages);
+
+                // Show in UI
+                String[] entries = new String[languages.size() + 2];
+                String[] entryval = new String[languages.size() + 2];
+                for (int i = 0; i < languages.size(); i++) {
+                    entries[i + 2] = languages.get(i).split(";")[0];
+                    entryval[i + 2] = languages.get(i).split(";")[1];
+                }
+                entryval[0] = SYSTEM_LANGUAGE_CODE;
+                entries[0] = _systemLanguageName + " » " + summarizeLocale(ConfigurationCompat.getLocales(Resources.getSystem().getConfiguration()).get(0), "");
+                entryval[1] = _defaultLanguageCode;
+                entries[1] = summarizeLocale(contextUtils.getLocaleByAndroidCode(_defaultLanguageCode), _defaultLanguageCode);
+
+                _cachedEntries = entries;
+                _cachedEntryValues = entryval;
             }
+
+            setEntries(_cachedEntries);
+            setEntryValues(_cachedEntryValues);
         }
-
-        // Sort languages naturally
-        Collections.sort(languages);
-
-        // Show in UI
-        String[] entries = new String[languages.size() + 2];
-        String[] entryval = new String[languages.size() + 2];
-        for (int i = 0; i < languages.size(); i++) {
-            entries[i + 2] = languages.get(i).split(";")[0];
-            entryval[i + 2] = languages.get(i).split(";")[1];
-        }
-        entryval[0] = SYSTEM_LANGUAGE_CODE;
-        entries[0] = _systemLanguageName + " » " + summarizeLocale(ConfigurationCompat.getLocales(Resources.getSystem().getConfiguration()).get(0), "");
-        entryval[1] = _defaultLanguageCode;
-        entries[1] = summarizeLocale(contextUtils.getLocaleByAndroidCode(_defaultLanguageCode), _defaultLanguageCode);
-
-        setEntries(entries);
-        setEntryValues(entryval);
     }
 
     // Concat english and localized language name

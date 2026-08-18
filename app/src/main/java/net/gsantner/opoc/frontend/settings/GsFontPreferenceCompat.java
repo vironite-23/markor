@@ -92,6 +92,28 @@ public class GsFontPreferenceCompat extends ListPreference {
         loadFonts(context, null);
     }
 
+    // Bugfix (Settings taking a very long time / sometimes ANR-crashing to open):
+    // Every time this preference is inflated (i.e. every single time the Settings screen is
+    // opened - androidx.preference eagerly instantiates *all* preferences declared in the XML,
+    // including ones inside nested <PreferenceScreen> blocks that aren't even visible yet) this
+    // used to synchronously: (1) scan several filesystem directories - including external
+    // storage - for font files, and (2) call Typeface.createFromFile()/createFromAsset() (disk
+    // I/O + native font parsing) for every single font found, all on the UI thread. With more
+    // than a few custom fonts installed this routinely took long enough to trigger an ANR.
+    // The scan result never changes during a single app run (fonts on disk don't change while
+    // Settings is open), so we now compute it once per process and reuse it on every subsequent
+    // open. Call resetFontCache() if the font directories change during the app's lifetime
+    // (e.g. after a "change notebook directory" action) so the list is picked up again.
+    private static String[] _cachedFontNames = null;
+    private static String[] _cachedFontValues = null;
+    private static Spannable[] _cachedFontText = null;
+
+    public static synchronized void resetFontCache() {
+        _cachedFontNames = null;
+        _cachedFontValues = null;
+        _cachedFontText = null;
+    }
+
     private void loadFonts(Context context, @Nullable AttributeSet attrs) {
         _defaultValue = _fontValues[0];
         if (attrs != null) {
@@ -109,20 +131,33 @@ public class GsFontPreferenceCompat extends ListPreference {
             }
         }
 
-        for (File file : getAdditionalFonts()) {
-            _fontNames = appendToArray(_fontNames, file.getName().replace(".ttf", "").replace(".TTF", ""));
-            _fontValues = appendToArray(_fontValues, file.getAbsolutePath());
+        synchronized (GsFontPreferenceCompat.class) {
+            if (_cachedFontNames == null || _cachedFontValues == null || _cachedFontText == null) {
+                String[] names = _fontNames;
+                String[] values = _fontValues;
+                for (File file : getAdditionalFonts()) {
+                    names = appendToArray(names, file.getName().replace(".ttf", "").replace(".TTF", ""));
+                    values = appendToArray(values, file.getAbsolutePath());
+                }
+
+                Spannable[] fontText = new Spannable[names.length];
+                for (int i = 0; i < names.length; i++) {
+                    fontText[i] = new SpannableString(names[i] + "\n" + values[i]);
+                    fontText[i].setSpan(new TypefaceObjectSpan(typeface(getContext(), values[i], null)), 0, names[i].length(), 0);
+                    fontText[i].setSpan(new RelativeSizeSpan(0.7f), names[i].length() + 1, fontText[i].length(), 0);
+                }
+
+                _cachedFontNames = names;
+                _cachedFontValues = values;
+                _cachedFontText = fontText;
+            }
+
+            _fontNames = _cachedFontNames;
+            _fontValues = _cachedFontValues;
         }
 
-        Spannable[] fontText = new Spannable[_fontNames.length];
-        for (int i = 0; i < _fontNames.length; i++) {
-            fontText[i] = new SpannableString(_fontNames[i] + "\n" + _fontValues[i]);
-            fontText[i].setSpan(new TypefaceObjectSpan(typeface(getContext(), _fontValues[i], null)), 0, _fontNames[i].length(), 0);
-            fontText[i].setSpan(new RelativeSizeSpan(0.7f), _fontNames[i].length() + 1, fontText[i].length(), 0);
-
-        }
         setDefaultValue(_defaultValue);
-        setEntries(fontText);
+        setEntries(_cachedFontText);
         setEntryValues(_fontValues);
     }
 
