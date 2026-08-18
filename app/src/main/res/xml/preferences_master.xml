@@ -204,6 +204,21 @@
                 android:key="@string/pref_key__grid_cover_height_dp"
                 android:inputType="number"
                 android:title="@string/grid_cover_height_dp" />
+            <androidx.preference.SeekBarPreference
+                android:defaultValue="4"
+                android:icon="@drawable/ic_view_module_black_24dp"
+                android:key="@string/pref_key__grid_item_padding_dp"
+                android:max="24"
+                android:min="0"
+                android:summary="@string/grid_item_padding_dp_description"
+                android:title="@string/grid_item_padding_dp"
+                app:showSeekBarValue="true" />
+            <CheckBoxPreference
+                android:defaultValue="false"
+                android:icon="@drawable/ic_visibility_off_black_24dp"
+                android:key="@string/pref_key__hide_non_text_files"
+                android:summary="@string/hide_non_text_files_description"
+                android:title="@string/hide_non_text_files" />
         </PreferenceCategory>
 
         <PreferenceCategory android:title="@string/backup">
@@ -313,6 +328,30 @@
             </PreferenceCategory>
 
         </PreferenceScreen>
+
+        <PreferenceCategory android:title="@string/editor_background">
+            <Preference
+                android:icon="@drawable/ic_image_black_24dp"
+                android:key="@string/pref_key__editor_background_image"
+                android:summary="@string/editor_background_image_summary"
+                android:title="@string/editor_background_image" />
+            <androidx.preference.SeekBarPreference
+                android:defaultValue="0"
+                android:icon="@drawable/ic_format_color_fill_black_24dp"
+                android:key="@string/pref_key__editor_background_blur"
+                android:max="30"
+                android:min="0"
+                android:title="@string/editor_background_blur"
+                app:showSeekBarValue="true" />
+            <androidx.preference.SeekBarPreference
+                android:defaultValue="0"
+                android:icon="@drawable/ic_invert_colors_black_24dp"
+                android:key="@string/pref_key__editor_background_darkness"
+                android:max="90"
+                android:min="0"
+                android:title="@string/editor_background_darkness"
+                app:showSeekBarValue="true" />
+        </PreferenceCategory>
 
         <PreferenceCategory android:title="@string/syntax_highlighting">
             <CheckBoxPreference
@@ -478,7 +517,31 @@
             android:icon="@drawable/gs_markdown_black_24dp"
             android:title="@string/markdown">
 
-            <PreferenceCategory android:title="@string/syntax_highlighting">
+            <PreferenceCategory android:title="@string/editor_background">
+            <Preference
+                android:icon="@drawable/ic_image_black_24dp"
+                android:key="@string/pref_key__editor_background_image"
+                android:summary="@string/editor_background_image_summary"
+                android:title="@string/editor_background_image" />
+            <androidx.preference.SeekBarPreference
+                android:defaultValue="0"
+                android:icon="@drawable/ic_format_color_fill_black_24dp"
+                android:key="@string/pref_key__editor_background_blur"
+                android:max="30"
+                android:min="0"
+                android:title="@string/editor_background_blur"
+                app:showSeekBarValue="true" />
+            <androidx.preference.SeekBarPreference
+                android:defaultValue="0"
+                android:icon="@drawable/ic_invert_colors_black_24dp"
+                android:key="@string/pref_key__editor_background_darkness"
+                android:max="90"
+                android:min="0"
+                android:title="@string/editor_background_darkness"
+                app:showSeekBarValue="true" />
+        </PreferenceCategory>
+
+        <PreferenceCategory android:title="@string/syntax_highlighting">
                 <androidx.preference.SeekBarPreference
                     android:defaultValue="650"
                     android:icon="@drawable/ic_highlight_black_24dp"
@@ -565,7 +628,31 @@
                     android:title="@string/additional_contexts_and_projects" />
             </PreferenceCategory>
 
-            <PreferenceCategory android:title="@string/syntax_highlighting">
+            <PreferenceCategory android:title="@string/editor_background">
+            <Preference
+                android:icon="@drawable/ic_image_black_24dp"
+                android:key="@string/pref_key__editor_background_image"
+                android:summary="@string/editor_background_image_summary"
+                android:title="@string/editor_background_image" />
+            <androidx.preference.SeekBarPreference
+                android:defaultValue="0"
+                android:icon="@drawable/ic_format_color_fill_black_24dp"
+                android:key="@string/pref_key__editor_background_blur"
+                android:max="30"
+                android:min="0"
+                android:title="@string/editor_background_blur"
+                app:showSeekBarValue="true" />
+            <androidx.preference.SeekBarPreference
+                android:defaultValue="0"
+                android:icon="@drawable/ic_invert_colors_black_24dp"
+                android:key="@string/pref_key__editor_background_darkness"
+                android:max="90"
+                android:min="0"
+                android:title="@string/editor_background_darkness"
+                app:showSeekBarValue="true" />
+        </PreferenceCategory>
+
+        <PreferenceCategory android:title="@string/syntax_highlighting">
                 <androidx.preference.SeekBarPreference
                     android:defaultValue="870"
                     android:icon="@drawable/ic_highlight_black_24dp"
@@ -615,7 +702,31 @@
             android:icon="@drawable/asciidoc_icon_black_24dp"
             android:title="@string/asciidoc">
 
-            <PreferenceCategory android:title="@string/syntax_highlighting">
+            <PreferenceCategory android:title="@string/editor_background">
+            <Preference
+                android:icon="@drawable/ic_image_black_24dp"
+                android:key="@string/pref_key__editor_background_image"
+                android:summary="@string/editor_background_image_summary"
+                android:title="@string/editor_background_image" />
+            <androidx.preference.SeekBarPreference
+                android:defaultValue="0"
+                android:icon="@drawable/ic_format_color_fill_black_24dp"
+                android:key="@string/pref_key__editor_background_blur"
+                android:max="30"
+                android:min="0"
+                android:title="@string/editor_background_blur"
+                app:showSeekBarValue="true" />
+            <androidx.preference.SeekBarPreference
+                android:defaultValue="0"
+                android:icon="@drawable/ic_invert_colors_black_24dp"
+                android:key="@string/pref_key__editor_background_darkness"
+                android:max="90"
+                android:min="0"
+                android:title="@string/editor_background_darkness"
+                app:showSeekBarValue="true" />
+        </PreferenceCategory>
+
+        <PreferenceCategory android:title="@string/syntax_highlighting">
                 <androidx.preference.SeekBarPreference
                     android:defaultValue="650"
                     android:icon="@drawable/ic_highlight_black_24dp"
@@ -645,7 +756,31 @@
             android:icon="@drawable/ic_org_mode_file"
             android:title="@string/orgmode">
 
-            <PreferenceCategory android:title="@string/syntax_highlighting">
+            <PreferenceCategory android:title="@string/editor_background">
+            <Preference
+                android:icon="@drawable/ic_image_black_24dp"
+                android:key="@string/pref_key__editor_background_image"
+                android:summary="@string/editor_background_image_summary"
+                android:title="@string/editor_background_image" />
+            <androidx.preference.SeekBarPreference
+                android:defaultValue="0"
+                android:icon="@drawable/ic_format_color_fill_black_24dp"
+                android:key="@string/pref_key__editor_background_blur"
+                android:max="30"
+                android:min="0"
+                android:title="@string/editor_background_blur"
+                app:showSeekBarValue="true" />
+            <androidx.preference.SeekBarPreference
+                android:defaultValue="0"
+                android:icon="@drawable/ic_invert_colors_black_24dp"
+                android:key="@string/pref_key__editor_background_darkness"
+                android:max="90"
+                android:min="0"
+                android:title="@string/editor_background_darkness"
+                app:showSeekBarValue="true" />
+        </PreferenceCategory>
+
+        <PreferenceCategory android:title="@string/syntax_highlighting">
                 <androidx.preference.SeekBarPreference
                     android:defaultValue="650"
                     android:icon="@drawable/ic_highlight_black_24dp"
