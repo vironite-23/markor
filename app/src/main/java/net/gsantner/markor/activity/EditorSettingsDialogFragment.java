@@ -134,7 +134,10 @@ public class EditorSettingsDialogFragment extends DialogFragment {
                 if (editor != null) {
                     // Remove the opaque settings panel while fine-tuning so the actual
                     // editor/background image remains fully visible underneath the controls.
-                    dismiss();
+                    final Fragment parent = getParentFragment();
+                    if (parent instanceof DialogFragment) {
+                        ((DialogFragment) parent).dismiss();
+                    }
                     EditorBackgroundSettingsDialogFragment.show(getParentFragmentManager(), editor);
                 }
                 return true;

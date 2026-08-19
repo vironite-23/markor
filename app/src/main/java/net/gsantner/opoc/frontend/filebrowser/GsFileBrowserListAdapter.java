@@ -989,7 +989,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             _fileToShowAfterNextLoad = null;
 
             try {
-                executorService.execute(() -> _loadFolder(targetFolder, folderChanged, toShow));
+                executorService.execute(() -> _loadFolder(targetFolder, folderChanged, toShow, navigationDirection));
             } catch (RejectedExecutionException err) { // during exit
                 Log.d(GsFileBrowserListAdapter.class.getName(), err.toString());
             }
@@ -997,7 +997,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
     }
 
     // This function is not called on the main thread
-    private synchronized void _loadFolder(final File targetFolder, final boolean folderChanged, final @Nullable File toShow) {
+    private synchronized void _loadFolder(final File targetFolder, final boolean folderChanged, final @Nullable File toShow, final int navigationDirection) {
 
         final List<File> newData = new ArrayList<>();
 
@@ -1230,7 +1230,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                 final ViewOutlineProvider provider = new ViewOutlineProvider() {
                     @Override
                     public void getOutline(View view, Outline outline) {
-                        final int configuredRadius = (int) (AppSettings.get(_context).getGridCornerRadiusDp() * density);
+                        final int configuredRadius = (int) (AppSettings.get(view.getContext()).getGridCornerRadiusDp() * density);
                         // Clamp to the actual item size so changing icon/cover dimensions can
                         // never cause the rounded outline to collapse/cut the image away.
                         final float radius = Math.min(configuredRadius, Math.min(view.getWidth(), view.getHeight()) / 2f);
