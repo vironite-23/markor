@@ -132,12 +132,9 @@ public class EditorSettingsDialogFragment extends DialogFragment {
             if (keyResId == R.string.pref_key__editor_background_setting) {
                 final DocumentEditAndViewFragment editor = getEditor();
                 if (editor != null) {
-                    // Remove the opaque settings panel while fine-tuning so the actual
-                    // editor/background image remains fully visible underneath the controls.
-                    final Fragment parent = getParentFragment();
-                    if (parent instanceof DialogFragment) {
-                        ((DialogFragment) parent).dismiss();
-                    }
+                    // Keep the parent dialog alive. Dismissing it and immediately showing a
+                    // sibling DialogFragment can race FragmentManager state changes and crash the
+                    // editor. The background dialog makes the parent window transparent instead.
                     EditorBackgroundSettingsDialogFragment.show(getParentFragmentManager(), editor);
                 }
                 return true;

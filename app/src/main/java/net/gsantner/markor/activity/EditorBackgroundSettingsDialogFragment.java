@@ -1,6 +1,7 @@
 package net.gsantner.markor.activity;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
@@ -18,6 +19,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.DialogFragment;
+import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.Fragment;
 
 import net.gsantner.markor.R;
@@ -59,19 +61,32 @@ public class EditorBackgroundSettingsDialogFragment extends DialogFragment {
             window.setDimAmount(0f);
             window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         }
-    }
 
+        // Make the existing Editor Settings window transparent rather than dismissing it.
+        // This keeps its FragmentManager state intact while exposing the live editor behind
+        // this transparent tuning overlay.
+        final FragmentManager fm = getParentFragmentManager();
+        final Fragment parent = fm.findFragmentByTag("EditorSettingsDialogFragment");
+        if (parent instanceof DialogFragment) {
+            final Dialog parentDialog = ((DialogFragment) parent).getDialog();
+            if (parentDialog != null && parentDialog.getWindow() != null) {
+                parentDialog.getWindow().getDecorView().setAlpha(0f);
+            }
+        }
+    }
 
     @Override
     public void onDismiss(@NonNull android.content.DialogInterface dialog) {
-        super.onDismiss(dialog);
-        final DocumentEditAndViewFragment editor = getEditor();
-        if (editor != null && !editor.isRemoving()) {
-            final androidx.fragment.app.FragmentManager fm = editor.getParentFragmentManager();
-            if (fm.findFragmentByTag("EditorSettingsDialogFragment") == null) {
-                EditorSettingsDialogFragment.show(fm, editor);
+        // Restore the existing settings dialog instead of creating a new one.
+        final FragmentManager fm = getParentFragmentManager();
+        final Fragment parent = fm.findFragmentByTag("EditorSettingsDialogFragment");
+        if (parent instanceof DialogFragment) {
+            final Dialog parentDialog = ((DialogFragment) parent).getDialog();
+            if (parentDialog != null && parentDialog.getWindow() != null) {
+                parentDialog.getWindow().getDecorView().setAlpha(1f);
             }
         }
+        super.onDismiss(dialog);
     }
 
     @Override

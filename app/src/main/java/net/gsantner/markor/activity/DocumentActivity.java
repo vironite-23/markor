@@ -334,7 +334,9 @@ public class DocumentActivity extends MarkorBaseActivity {
         } else {
             finish();
         }
-        overridePendingTransition(R.anim.markor_slide_in_right, R.anim.markor_slide_out_left);
+        // Closing is the reverse of opening: the editor leaves to the right while the
+        // previous browser screen enters from the left.
+        overridePendingTransition(R.anim.markor_slide_in_left, R.anim.markor_slide_out_right);
     }
 
     @Override
