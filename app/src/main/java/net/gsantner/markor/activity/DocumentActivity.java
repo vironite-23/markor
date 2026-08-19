@@ -114,6 +114,8 @@ public class DocumentActivity extends MarkorBaseActivity {
         intent.putExtra(Document.EXTRA_FILE, file);
 
         activity.startActivity(intent);
+        // New editor content enters from the right while the browser screen moves left.
+        activity.overridePendingTransition(R.anim.markor_slide_in_right, R.anim.markor_slide_out_left);
     }
 
     public static void askUserIfWantsToOpenFileInThisApp(final Activity activity, final File file) {
@@ -332,6 +334,7 @@ public class DocumentActivity extends MarkorBaseActivity {
         } else {
             finish();
         }
+        overridePendingTransition(R.anim.markor_slide_in_right, R.anim.markor_slide_out_left);
     }
 
     @Override

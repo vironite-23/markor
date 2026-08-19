@@ -412,6 +412,7 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="pref_key__grid_cover_height_dp" translatable="false">pref_key__grid_cover_height_dp</string>
     <string name="pref_key__grid_spacing_dp" translatable="false">pref_key__grid_spacing_dp</string>
     <string name="pref_key__grid_side_padding_dp" translatable="false">pref_key__grid_side_padding_dp</string>
+    <string name="pref_key__grid_corner_radius_dp" translatable="false">pref_key__grid_corner_radius_dp</string>
     <string name="pref_key__file_browser_hide_non_text_files" translatable="false">pref_key__file_browser_hide_non_text_files</string>
     <string name="pref_key__editor_background_enabled" translatable="false">pref_key__editor_background_enabled</string>
     <string name="pref_key__editor_background_image_path" translatable="false">pref_key__editor_background_image_path</string>

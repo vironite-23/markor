@@ -920,6 +920,20 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                 _context, hovered ? _dopt.accentColor : _dopt.primaryTextColor));
     }
 
+    private void animateFolderContent(final int direction) {
+        if (_recyclerView == null || direction == 0) {
+            return;
+        }
+        final int width = Math.max(1, _recyclerView.getWidth());
+        _recyclerView.animate().cancel();
+        _recyclerView.setTranslationX(direction > 0 ? width : -width);
+        _recyclerView.animate()
+                .translationX(0f)
+                .setDuration(180L)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                .start();
+    }
+
     private void loadFolder(final File folder, final File show) {
         if (folder == null || _recyclerView == null) {
             return;
@@ -927,6 +941,10 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
 
         final File previousFolder = _currentFolder;
         final boolean folderChanged = !folder.equals(previousFolder);
+        // Forward navigation (opening a child) enters from the right; back navigation enters
+        // from the left, matching the direction of the page transition.
+        final int navigationDirection = !folderChanged ? 0 :
+                (GO_BACK_SIGNIFIER == folder || (previousFolder != null && GsFileUtils.isChild(folder, previousFolder)) ? -1 : 1);
 
         if (folderChanged && previousFolder != null && _layoutManager != null) {
             _folderScrollMap.put(previousFolder, _layoutManager.onSaveInstanceState());
@@ -1057,6 +1075,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                 notifyDataSetChanged();
 
                 if (folderChanged) {
+                    animateFolderContent(navigationDirection);
                     _recyclerView.post(() -> {
                         if (_layoutManager != null) {
                             _layoutManager.onRestoreInstanceState(_folderScrollMap.remove(_currentFolder));
@@ -1207,11 +1226,15 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             // this works correctly for both the placeholder background AND any bitmap content
             // (folder icon, file icon, or a decoded cover photo) at whatever size is set later.
             if (imageFrame != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                final int radiusPx = (int) (10 * row.getResources().getDisplayMetrics().density);
+                final float density = row.getResources().getDisplayMetrics().density;
                 final ViewOutlineProvider provider = new ViewOutlineProvider() {
                     @Override
                     public void getOutline(View view, Outline outline) {
-                        outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radiusPx);
+                        final int configuredRadius = (int) (AppSettings.get(_context).getGridCornerRadiusDp() * density);
+                        // Clamp to the actual item size so changing icon/cover dimensions can
+                        // never cause the rounded outline to collapse/cut the image away.
+                        final float radius = Math.min(configuredRadius, Math.min(view.getWidth(), view.getHeight()) / 2f);
+                        outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radius);
                     }
                 };
                 image.setOutlineProvider(provider);
