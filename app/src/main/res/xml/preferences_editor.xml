@@ -92,48 +92,11 @@
 
         </PreferenceScreen>
 
-        <PreferenceScreen
+        <Preference
             android:icon="@drawable/ic_image_black_24dp"
-            android:title="@string/editor_background_setting">
-            <androidx.preference.CheckBoxPreference
-                android:defaultValue="false"
-                android:icon="@drawable/ic_image_black_24dp"
-                android:key="@string/pref_key__editor_background_enabled"
-                android:summary="@string/editor_background_enabled_description"
-                android:title="@string/editor_background_enabled" />
-            <Preference
-                android:dependency="@string/pref_key__editor_background_enabled"
-                android:icon="@drawable/ic_image_black_24dp"
-                android:key="@string/pref_key__editor_background_image_path"
-                android:title="@string/editor_background_image_path" />
-            <androidx.preference.SeekBarPreference
-                android:defaultValue="0"
-                android:dependency="@string/pref_key__editor_background_enabled"
-                android:icon="@drawable/ic_image_black_24dp"
-                android:key="@string/pref_key__editor_background_blur"
-                android:max="25"
-                app:min="0"
-                android:title="@string/editor_background_blur"
-                app:showSeekBarValue="true" />
-            <androidx.preference.SeekBarPreference
-                android:defaultValue="40"
-                android:dependency="@string/pref_key__editor_background_enabled"
-                android:icon="@drawable/ic_image_black_24dp"
-                android:key="@string/pref_key__editor_background_darkness"
-                android:max="100"
-                app:min="0"
-                android:title="@string/editor_background_darkness"
-                app:showSeekBarValue="true" />
-            <androidx.preference.SeekBarPreference
-                android:defaultValue="50"
-                android:dependency="@string/pref_key__editor_background_enabled"
-                android:icon="@drawable/ic_image_black_24dp"
-                android:key="@string/pref_key__editor_background_y"
-                android:max="100"
-                app:min="0"
-                android:title="@string/editor_background_y"
-                app:showSeekBarValue="true" />
-        </PreferenceScreen>
+            android:key="@string/pref_key__editor_background_setting"
+            android:summary="@string/editor_background_enabled_description"
+            android:title="@string/editor_background_setting" />
 
         <PreferenceCategory android:title="@string/syntax_highlighting">
             <CheckBoxPreference

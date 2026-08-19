@@ -429,9 +429,11 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
         final float scale = Math.max((float) width / drawable.getIntrinsicWidth(), (float) height / drawable.getIntrinsicHeight());
         final float scaledWidth = drawable.getIntrinsicWidth() * scale;
         final float scaledHeight = drawable.getIntrinsicHeight() * scale;
-        final float dx = (width - scaledWidth) * 0.5f;
+        final float maxDx = width - scaledWidth;
         final float maxDy = height - scaledHeight;
+        final float x = Math.max(0, Math.min(100, _appSettings.getEditorBackgroundX())) / 100f;
         final float y = Math.max(0, Math.min(100, _appSettings.getEditorBackgroundY())) / 100f;
+        final float dx = maxDx * x;
         final float dy = maxDy * y;
 
         final android.graphics.Matrix matrix = new android.graphics.Matrix();

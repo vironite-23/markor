@@ -461,6 +461,14 @@ public class AppSettings extends GsSharedPreferencesPropertyBackend {
         setInt(R.string.pref_key__editor_background_y, Math.max(0, Math.min(100, y)));
     }
 
+    public int getEditorBackgroundX() {
+        return getInt(R.string.pref_key__editor_background_x, 50);
+    }
+
+    public void setEditorBackgroundX(final int x) {
+        setInt(R.string.pref_key__editor_background_x, Math.max(0, Math.min(100, x)));
+    }
+
     private static int parseNonNegativeIntOrDefault(final String value, final int defaultValue) {
         try {
             final int parsed = Integer.parseInt(value.trim());

@@ -355,6 +355,9 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="editor_background_blur">Background blur</string>
     <string name="editor_background_darkness">Background darkness</string>
     <string name="editor_background_y">Background vertical position</string>
+    <string name="editor_background_x">Background horizontal position</string>
+    <string name="editor_background_x_value">Horizontal position: %1$d</string>
+    <string name="editor_background_y_value">Vertical position: %1$d</string>
     <string name="editor_background_setting">Background setting</string>
     <string name="select_text">Select text</string>
     <string name="side_panel_no_other_text_files">No other text files in this folder</string>

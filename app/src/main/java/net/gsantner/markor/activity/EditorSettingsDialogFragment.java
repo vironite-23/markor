@@ -129,6 +129,17 @@ public class EditorSettingsDialogFragment extends DialogFragment {
 
         @Override
         public Boolean onPreferenceClicked(Preference preference, String key, int keyResId) {
+            if (keyResId == R.string.pref_key__editor_background_setting) {
+                final DocumentEditAndViewFragment editor = getEditor();
+                if (editor != null) {
+                    // Remove the opaque settings panel while fine-tuning so the actual
+                    // editor/background image remains fully visible underneath the controls.
+                    dismiss();
+                    EditorBackgroundSettingsDialogFragment.show(getParentFragmentManager(), editor);
+                }
+                return true;
+            }
+
             if (keyResId == R.string.pref_key__editor_background_image_path) {
                 final Activity activity = getActivity();
                 final DocumentEditAndViewFragment editor = getEditor();
@@ -155,6 +166,7 @@ public class EditorSettingsDialogFragment extends DialogFragment {
             }
 
             if (key.startsWith("pref_key__editor_basic_color_scheme") && !key.contains("_fg_") && !key.contains("_bg_")) {
+                applyColorScheme(key);
                 _appSettings.setRecreateMainRequired(true);
                 final DocumentEditAndViewFragment editor = getEditor();
                 if (editor != null) {
@@ -164,6 +176,31 @@ public class EditorSettingsDialogFragment extends DialogFragment {
                 return true;
             }
             return null;
+        }
+
+        private void applyColorScheme(final String key) {
+            if (key.equals(getString(R.string.pref_key__basic_color_scheme_markor))) {
+                _appSettings.setEditorBasicColor(true, R.color.dark__primary_text, R.color.dark__background);
+                _appSettings.setEditorBasicColor(false, R.color.light__primary_text, R.color.light__background);
+            } else if (key.equals(getString(R.string.pref_key__basic_color_scheme_blackorwhite))) {
+                _appSettings.setEditorBasicColor(true, R.color.white, R.color.black);
+                _appSettings.setEditorBasicColor(false, R.color.black, R.color.white);
+            } else if (key.equals(getString(R.string.pref_key__basic_color_scheme_solarized))) {
+                _appSettings.setEditorBasicColor(true, R.color.solarized_fg, R.color.solarized_bg_dark);
+                _appSettings.setEditorBasicColor(false, R.color.solarized_fg, R.color.solarized_bg_light);
+            } else if (key.equals(getString(R.string.pref_key__basic_color_scheme_gruvbox))) {
+                _appSettings.setEditorBasicColor(true, R.color.gruvbox_fg_dark, R.color.gruvbox_bg_dark);
+                _appSettings.setEditorBasicColor(false, R.color.gruvbox_fg_light, R.color.gruvbox_bg_light);
+            } else if (key.equals(getString(R.string.pref_key__basic_color_scheme_nord))) {
+                _appSettings.setEditorBasicColor(true, R.color.nord_fg_dark, R.color.nord_bg_dark);
+                _appSettings.setEditorBasicColor(false, R.color.nord_fg_light, R.color.nord_bg_light);
+            } else if (key.equals(getString(R.string.pref_key__basic_color_scheme_greenscale))) {
+                _appSettings.setEditorBasicColor(true, R.color.green_dark, R.color.black);
+                _appSettings.setEditorBasicColor(false, R.color.green_light, R.color.white);
+            } else if (key.equals(getString(R.string.pref_key__basic_color_scheme_sepia))) {
+                _appSettings.setEditorBasicColor(true, R.color.sepia_bg_light__fg_dark, R.color.sepia_fg_light__bg_dark);
+                _appSettings.setEditorBasicColor(false, R.color.sepia_fg_light__bg_dark, R.color.sepia_bg_light__fg_dark);
+            }
         }
 
         @Nullable
