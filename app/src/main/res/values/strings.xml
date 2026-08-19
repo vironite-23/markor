@@ -144,6 +144,7 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="back_to_previous_folder" needed="false">Back to previous folder</string>
     <string name="app_settings" needed="false">App Settings</string>
     <string name="editor_settings" needed="false">Editor Settings</string>
+    <string name="editor_setting">Editor setting</string>
     <string name="remember_last_folder_location_on_startup" needed="false">Remember last folder location on startup</string>
     <string name="number_of_files_witharg" needed="false">Number of files: %d</string>
 
@@ -353,6 +354,8 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="editor_background_image_path">Editor background image</string>
     <string name="editor_background_blur">Background blur</string>
     <string name="editor_background_darkness">Background darkness</string>
+    <string name="editor_background_y">Background vertical position</string>
+    <string name="editor_background_setting">Background setting</string>
     <string name="select_text">Select text</string>
     <string name="side_panel_no_other_text_files">No other text files in this folder</string>
     <string name="side_panel_search_not_found">Not found</string>

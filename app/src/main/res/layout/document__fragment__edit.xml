@@ -21,7 +21,7 @@
         tools:context="net.gsantner.markor.activity.DocumentEditAndViewFragment"
         tools:showIn="@layout/document__activity">
 
-    <!-- Custom editor background image (Settings > Editor > Custom editor background).
+    <!-- Custom editor background image (Editor setting > Background setting).
          Sits behind everything else in this FrameLayout; hidden (GONE) unless enabled.
          The blur is baked into the bitmap itself (see DocumentEditAndViewFragment); the
          darkness scrim on top of it is a plain semi-transparent view so its alpha can be

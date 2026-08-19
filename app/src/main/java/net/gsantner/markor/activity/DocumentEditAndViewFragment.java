@@ -125,6 +125,8 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
     private ViewGroup _textActionsBar;
     private ImageView _editorBackgroundImage;
     private View _editorBackgroundScrim;
+    private int _editorBackgroundBaseWidth;
+    private int _editorBackgroundBaseHeight;
 
     private DraggableScrollbarScrollView _verticalScrollView;
     private HorizontalScrollView _horizontalScrollView;
@@ -185,6 +187,36 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
         _lineNumbersView = view.findViewById(R.id.document__fragment__edit__line_numbers_view);
         _editorBackgroundImage = view.findViewById(R.id.document__fragment__edit__background_image);
         _editorBackgroundScrim = view.findViewById(R.id.document__fragment__edit__background_scrim);
+        view.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            final int width = right - left;
+            final int height = bottom - top;
+            if (width <= 0 || height <= 0) {
+                return;
+            }
+            if (_editorBackgroundBaseWidth != width) {
+                _editorBackgroundBaseWidth = width;
+                _editorBackgroundBaseHeight = height;
+            } else if (_editorBackgroundBaseHeight <= 0 || height > _editorBackgroundBaseHeight) {
+                _editorBackgroundBaseHeight = height;
+            }
+            if (_editorBackgroundImage != null && _editorBackgroundBaseHeight > 0) {
+                final ViewGroup.LayoutParams lp = _editorBackgroundImage.getLayoutParams();
+                if (lp.height != _editorBackgroundBaseHeight) {
+                    lp.height = _editorBackgroundBaseHeight;
+                    _editorBackgroundImage.setLayoutParams(lp);
+                }
+                applyEditorBackgroundPosition();
+            }
+        });
+        view.post(() -> {
+            if (_editorBackgroundBaseWidth == 0 && view.getWidth() > 0 && view.getHeight() > 0) {
+                _editorBackgroundBaseWidth = view.getWidth();
+                _editorBackgroundBaseHeight = view.getHeight();
+                final ViewGroup.LayoutParams lp = _editorBackgroundImage.getLayoutParams();
+                lp.height = _editorBackgroundBaseHeight;
+                _editorBackgroundImage.setLayoutParams(lp);
+            }
+        });
         _cu = new MarkorContextUtils(activity);
         _editTextUndoRedoHelper = new TextViewUndoRedo();
         _editorHolder.setOnClickListener(v -> {
@@ -364,6 +396,13 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
             return;
         }
         _editorBackgroundImage.setImageBitmap(bmp);
+        _editorBackgroundImage.setScaleType(ImageView.ScaleType.MATRIX);
+        if (_editorBackgroundBaseHeight <= 0) {
+            final View root = _editorBackgroundImage.getRootView();
+            _editorBackgroundBaseHeight = root.getHeight();
+            _editorBackgroundBaseWidth = root.getWidth();
+        }
+        applyEditorBackgroundPosition();
         _editorBackgroundImage.setVisibility(View.VISIBLE);
         // Let the image show through - the editor's own solid background would otherwise paint over it.
         _hlEditor.setBackgroundColor(Color.TRANSPARENT);
@@ -376,6 +415,31 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
      * a stronger blur. Avoids RenderScript (deprecated) / RenderEffect (API 31+ only), so it
      * works across this app's full minSdk range.
      */
+    private void applyEditorBackgroundPosition() {
+        if (_editorBackgroundImage == null || _editorBackgroundImage.getDrawable() == null) {
+            return;
+        }
+        final int width = _editorBackgroundImage.getWidth();
+        final int height = _editorBackgroundBaseHeight > 0 ? _editorBackgroundBaseHeight : _editorBackgroundImage.getHeight();
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+
+        final Drawable drawable = _editorBackgroundImage.getDrawable();
+        final float scale = Math.max((float) width / drawable.getIntrinsicWidth(), (float) height / drawable.getIntrinsicHeight());
+        final float scaledWidth = drawable.getIntrinsicWidth() * scale;
+        final float scaledHeight = drawable.getIntrinsicHeight() * scale;
+        final float dx = (width - scaledWidth) * 0.5f;
+        final float maxDy = height - scaledHeight;
+        final float y = Math.max(0, Math.min(100, _appSettings.getEditorBackgroundY())) / 100f;
+        final float dy = maxDy * y;
+
+        final android.graphics.Matrix matrix = new android.graphics.Matrix();
+        matrix.setScale(scale, scale);
+        matrix.postTranslate(dx, dy);
+        _editorBackgroundImage.setImageMatrix(matrix);
+    }
+
     private static Bitmap cheapBlur(final Bitmap src, final int blurAmount) {
         if (blurAmount <= 0) {
             return src;
@@ -389,6 +453,28 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
             small.recycle();
         }
         return result;
+    }
+
+    public void applyEditorSettingsLive() {
+        if (_hlEditor == null || _appSettings == null) {
+            return;
+        }
+        _hlEditor.setLineSpacing(0, _appSettings.getEditorLineSpacing());
+        _hlEditor.setTextSize(TypedValue.COMPLEX_UNIT_SP, _appSettings.getDocumentFontSize(_document.path));
+        _hlEditor.setTypeface(GsFontPreferenceCompat.typeface(getContext(), _appSettings.getFontFamily(), Typeface.NORMAL));
+        _hlEditor.setTextColor(_appSettings.getEditorForegroundColor());
+        _hlEditor.setGravity(_appSettings.isEditorStartEditingInCenter() ? Gravity.CENTER : Gravity.NO_GRAVITY);
+        _hlEditor.setStaticCursorEnabled(_appSettings.isStaticCursorEnabled());
+        final int editorBackgroundColor = _appSettings.getEditorBackgroundColor();
+        if (!_appSettings.isEditorBackgroundEnabled()) {
+            _hlEditor.setBackgroundColor(editorBackgroundColor);
+            _editorHolder.setBackgroundColor(editorBackgroundColor);
+        }
+        applyEditorBackgroundImage();
+    }
+
+    private void showEditorSettings() {
+        EditorSettingsDialogFragment.show(getParentFragmentManager(), this);
     }
 
     @Override
@@ -524,6 +610,7 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
         menu.findItem(R.id.submenu_share).setVisible(isText);
         menu.findItem(R.id.submenu_tools).setVisible(isText);
         menu.findItem(R.id.submenu_per_file_settings).setVisible(isText);
+        menu.findItem(R.id.action_editor_settings).setVisible(isText && !_isPreviewVisible);
 
         menu.findItem(R.id.action_share_pdf).setVisible(true);
         menu.findItem(R.id.action_share_image).setVisible(true);
@@ -706,6 +793,10 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
             }
             case R.id.action_reload: {
                 reload();
+                return true;
+            }
+            case R.id.action_editor_settings: {
+                showEditorSettings();
                 return true;
             }
             case R.id.action_preview: {
@@ -1639,7 +1730,7 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
         _sidePanelPendingScrollY = -1;
 
         SIDEPANEL_EXECUTOR.execute(() -> {
-            final String content = GsFileUtils.readTextFile(file);
+            final String content = readSidePanelTextSafely(file);
             final Activity activity = getActivity();
             if (activity == null) {
                 return;
@@ -1657,6 +1748,29 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
                 });
             });
         });
+    }
+
+
+    /**
+     * Reads side panel text without allowing extremely large files to freeze or crash the editor.
+     * The side panel is a preview, not the primary editor, so keeping a bounded amount of text
+     * gives much better responsiveness for huge files.
+     */
+    private static String readSidePanelTextSafely(final File file) {
+        if (file == null) {
+            return "";
+        }
+        final long maxBytes = 2L * 1024L * 1024L;
+        try {
+            if (file.length() > maxBytes) {
+                final String content = GsFileUtils.readTextFile(file);
+                return content.length() > 400000 ? content.substring(0, 400000)
+                        + "\n\n[Large file preview truncated]" : content;
+            }
+            return GsFileUtils.readTextFile(file);
+        } catch (Exception ignored) {
+            return "";
+        }
     }
 
     private void persistSidePanelScrollY() {

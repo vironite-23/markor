@@ -452,6 +452,15 @@ public class AppSettings extends GsSharedPreferencesPropertyBackend {
         setInt(R.string.pref_key__editor_background_darkness, Math.max(0, Math.min(100, darkness)));
     }
 
+    // 0 = top, 50 = centered, 100 = bottom of the available crop.
+    public int getEditorBackgroundY() {
+        return getInt(R.string.pref_key__editor_background_y, 50);
+    }
+
+    public void setEditorBackgroundY(final int y) {
+        setInt(R.string.pref_key__editor_background_y, Math.max(0, Math.min(100, y)));
+    }
+
     private static int parseNonNegativeIntOrDefault(final String value, final int defaultValue) {
         try {
             final int parsed = Integer.parseInt(value.trim());
