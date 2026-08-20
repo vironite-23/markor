@@ -135,7 +135,15 @@ public class EditorSettingsDialogFragment extends DialogFragment {
                     // Keep the parent dialog alive. Dismissing it and immediately showing a
                     // sibling DialogFragment can race FragmentManager state changes and crash the
                     // editor. The background dialog makes the parent window transparent instead.
-                    EditorBackgroundSettingsDialogFragment.show(getParentFragmentManager(), editor);
+                    //
+                    // Must use editor's own FragmentManager (not this preference fragment's
+                    // getParentFragmentManager(), which is EditorSettingsDialogFragment's nested
+                    // child FragmentManager) since EditorBackgroundSettingsDialogFragment's target
+                    // fragment is set to editor - AndroidX Fragment requires a DialogFragment to be
+                    // shown on the same FragmentManager its target fragment belongs to, otherwise it
+                    // throws "declared target fragment that does not belong to this FragmentManager"
+                    // and crashes as soon as this preference is tapped.
+                    EditorBackgroundSettingsDialogFragment.show(editor.getParentFragmentManager(), editor);
                 }
                 return true;
             }
@@ -165,7 +173,10 @@ public class EditorSettingsDialogFragment extends DialogFragment {
                 return true;
             }
 
-            if (key.startsWith("pref_key__editor_basic_color_scheme") && !key.contains("_fg_") && !key.contains("_bg_")) {
+            // Preset keys are "pref_key__basic_color_scheme_<name>" (see string-not_translatable.xml)
+            // - there is no "editor_" infix. The old prefix here never matched any real preference
+            // key, so tapping a preset (Markor, Solarized, Gruvbox, ...) silently did nothing.
+            if (key.startsWith("pref_key__basic_color_scheme") && !key.contains("_fg_") && !key.contains("_bg_")) {
                 applyColorScheme(key);
                 _appSettings.setRecreateMainRequired(true);
                 final DocumentEditAndViewFragment editor = getEditor();

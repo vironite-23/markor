@@ -11,7 +11,9 @@ package net.gsantner.opoc.frontend.filebrowser;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.Outline;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -875,6 +877,31 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
     }
 
     /**
+     * Builds a rounded-rectangle cell mark (background / selection / hover) at runtime instead
+     * of using a static drawable resource. The old drawables (grid_item_bg_placeholder,
+     * grid_item_bg_normal, grid_item_bg_selected, grid_item_bg_hover) baked in a fixed 10dp
+     * corner radius and fixed 1-3dp stroke width, which only ever matched the corner-radius
+     * setting's default value. A cover image has no baked-in radius of its own, so it always
+     * looked correctly rounded (clipped purely by the ViewHolder's dynamic outline provider) -
+     * but the icon-without-cover placeholder background, drawn from that static drawable, was
+     * clipped by the dynamic outline AND rounded to its own smaller/mismatched baked-in radius,
+     * so pushing the corner-radius setting above 10dp had no visible effect on it. Building the
+     * shape here with the live radius fixes that, and scaling the stroke width with the
+     * configured cover size makes the selection/hover mark's thickness track the covers' size
+     * too, instead of staying a fixed 1-3dp line regardless of how big the covers are.
+     */
+    private GradientDrawable buildGridCellDrawable(final int fillColor, final int strokeColor, final int strokeWidthPx, final float radiusPx) {
+        final GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setColor(fillColor);
+        drawable.setCornerRadius(radiusPx);
+        if (strokeWidthPx > 0) {
+            drawable.setStroke(strokeWidthPx, strokeColor);
+        }
+        return drawable;
+    }
+
+    /**
      * Grid view only: shows a noticeable accent-colored highlight behind the icon/cover when the
      * item is selected, instead of replacing the icon with a checkmark (which would hide a cover
      * image). Falls back to the normal / placeholder background when not selected.
@@ -884,17 +911,25 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             return;
         }
 
+        final AppSettings settings = AppSettings.get(_context);
+        final float density = _context.getResources().getDisplayMetrics().density;
+        final float radiusPx = density * settings.getGridCornerRadiusDp();
+        // Selection/hover stroke thickness relative to the covers' configured size, clamped to
+        // a sane 1dp-4dp range so it stays visible on tiny covers and isn't overpowering on big ones.
+        final int minCoverDp = Math.min(settings.getGridCoverImageWidthDp(), settings.getGridCoverImageHeightDp());
+        final int markStrokeWidthPx = Math.round(density * Math.max(1f, Math.min(4f, minCoverDp * 0.035f)));
+
         // Keep the normal/placeholder background underneath the image, but put the selection
         // drawable in the FrameLayout foreground so its stroke is drawn ON TOP of the icon/cover.
         // Previously it was a background and could be completely covered by the ImageView.
-        if ("placeholder".equals(holder.imageFrame.getTag(R.id.opoc_filesystem_item__image_frame))) {
-            holder.imageFrame.setBackgroundResource(R.drawable.grid_item_bg_placeholder);
-        } else {
-            holder.imageFrame.setBackgroundResource(R.drawable.grid_item_bg_normal);
-        }
+        final boolean isPlaceholder = "placeholder".equals(holder.imageFrame.getTag(R.id.opoc_filesystem_item__image_frame));
+        holder.imageFrame.setBackground(buildGridCellDrawable(
+                isPlaceholder ? ContextCompat.getColor(_context, android.R.color.darker_gray) : Color.TRANSPARENT,
+                0, 0, radiusPx));
 
         if (isSelected) {
-            holder.imageFrame.setForeground(ContextCompat.getDrawable(_context, R.drawable.grid_item_bg_selected));
+            holder.imageFrame.setForeground(buildGridCellDrawable(
+                    0x33F04B4B, ContextCompat.getColor(_context, R.color.accent), markStrokeWidthPx, radiusPx));
         } else {
             holder.imageFrame.setForeground(null);
         }
@@ -905,13 +940,21 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             return;
         }
 
+        final AppSettings settings = AppSettings.get(_context);
+        final float density = _context.getResources().getDisplayMetrics().density;
+        final float radiusPx = density * settings.getGridCornerRadiusDp();
+        final int minCoverDp = Math.min(settings.getGridCoverImageWidthDp(), settings.getGridCoverImageHeightDp());
+        final int markStrokeWidthPx = Math.round(density * Math.max(1f, Math.min(4f, minCoverDp * 0.035f)));
+
         final boolean selected = _currentSelection.contains(
                 holder.itemRoot.getTag() instanceof TagContainer
                         ? ((TagContainer) holder.itemRoot.getTag()).file : null);
         if (selected) {
-            holder.imageFrame.setForeground(ContextCompat.getDrawable(_context, R.drawable.grid_item_bg_selected));
+            holder.imageFrame.setForeground(buildGridCellDrawable(
+                    0x33F04B4B, ContextCompat.getColor(_context, R.color.accent), markStrokeWidthPx, radiusPx));
         } else if (hovered) {
-            holder.imageFrame.setForeground(ContextCompat.getDrawable(_context, R.drawable.grid_item_bg_hover));
+            holder.imageFrame.setForeground(buildGridCellDrawable(
+                    0x12000000, ContextCompat.getColor(_context, R.color.accent), Math.max(1, markStrokeWidthPx / 3), radiusPx));
         } else {
             holder.imageFrame.setForeground(null);
         }
@@ -964,6 +1007,19 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
 
         if (folderChanged) {
             _currentSelection.clear();
+
+            // Move the RecyclerView off-screen (in the direction the new content will enter
+            // from) BEFORE clearing it. Without this, the clear below renders on its own frame
+            // at translationX=0 - a visible flash of blank content - and only the later
+            // repopulation (once the background scan finishes) would be off-screen/animated.
+            // Doing both in the same synchronous block means the blank state is never drawn
+            // on-screen at all, so the whole transition reads as a single smooth slide instead
+            // of a flash followed by an animation.
+            if (navigationDirection != 0) {
+                final int width = Math.max(1, _recyclerView.getWidth());
+                _recyclerView.animate().cancel();
+                _recyclerView.setTranslationX(navigationDirection > 0 ? width : -width);
+            }
 
             // Clear the old folder immediately. Without this, RecyclerView keeps drawing the old
             // main-page contents until the background directory scan finishes, causing a visible
