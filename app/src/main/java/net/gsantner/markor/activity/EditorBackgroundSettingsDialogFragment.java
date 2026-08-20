@@ -1,6 +1,8 @@
 package net.gsantner.markor.activity;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
 import android.app.Dialog;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
@@ -23,11 +25,8 @@ import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.Fragment;
 
 import net.gsantner.markor.R;
-import net.gsantner.markor.frontend.filebrowser.MarkorFileBrowserFactory;
 import net.gsantner.markor.model.AppSettings;
-import net.gsantner.opoc.frontend.filebrowser.GsFileBrowserOptions;
 
-import java.io.File;
 
 /** Transparent live editor-background tuning overlay. */
 public class EditorBackgroundSettingsDialogFragment extends DialogFragment {
@@ -127,23 +126,13 @@ public class EditorBackgroundSettingsDialogFragment extends DialogFragment {
         choose.setOnClickListener(v -> {
             final Activity activity = getActivity();
             if (activity == null) return;
-            MarkorFileBrowserFactory.showFileDialog(new GsFileBrowserOptions.SelectionListenerAdapter() {
-                @Override
-                public void onFsViewerSelected(String request, File file, Integer lineNumber) {
-                    settings.setEditorBackgroundImagePath(file.getAbsolutePath());
-                    settings.setEditorBackgroundEnabled(true);
-                    enabled.setChecked(true);
-                    updatePath(path, file.getAbsolutePath());
-                    editor.applyEditorSettingsLive();
-                }
-
-                @Override
-                public void onFsViewerConfig(GsFileBrowserOptions.Options dopt) {
-                    dopt.titleText = R.string.editor_background_image_path;
-                    dopt.rootFolder = settings.getNotebookDirectory();
-                    dopt.newDirButtonEnable = false;
-                }
-            }, getParentFragmentManager(), activity, MarkorFileBrowserFactory.IsMimeImage);
+            try {
+                startActivityForResult(EditorBackgroundImagePicker.createIntent(),
+                        EditorBackgroundImagePicker.REQUEST_CODE);
+            } catch (android.content.ActivityNotFoundException e) {
+                // No gallery/media picker is installed. Do not fall back to the generic file
+                // browser because this action is specifically intended for gallery images.
+            }
         });
 
         x.setOnSeekBarChangeListener(new SimpleSeekBarListener() {
@@ -176,6 +165,43 @@ public class EditorBackgroundSettingsDialogFragment extends DialogFragment {
         });
 
         ((Button) view.findViewById(R.id.editor_background_close)).setOnClickListener(v -> dismiss());
+    }
+
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != EditorBackgroundImagePicker.REQUEST_CODE || resultCode != Activity.RESULT_OK
+                || data == null || data.getData() == null) {
+            return;
+        }
+
+        final DocumentEditAndViewFragment editor = getEditor();
+        if (editor == null) {
+            return;
+        }
+
+        final Uri selectedUri = data.getData();
+        final AppSettings settings = settings();
+        try {
+            final String path = EditorBackgroundImagePicker.copyToAppStorage(requireContext(), selectedUri);
+            settings.setEditorBackgroundImagePath(path);
+            settings.setEditorBackgroundEnabled(true);
+            final View view = getView();
+            if (view != null) {
+                final Switch enabled = view.findViewById(R.id.editor_background_enabled);
+                final TextView pathView = view.findViewById(R.id.editor_background_path);
+                if (enabled != null) {
+                    enabled.setChecked(true);
+                }
+                if (pathView != null) {
+                    updatePath(pathView, path);
+                }
+            }
+            editor.applyEditorSettingsLive();
+        } catch (Exception ignored) {
+            // Keep the current background when the selected image cannot be copied/read.
+        }
     }
 
     private void updatePath(TextView view, String value) {

@@ -2,6 +2,8 @@ package net.gsantner.markor.activity;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -19,12 +21,9 @@ import androidx.preference.Preference;
 import com.rarepebble.colorpicker.ColorPreference;
 
 import net.gsantner.markor.R;
-import net.gsantner.markor.frontend.filebrowser.MarkorFileBrowserFactory;
 import net.gsantner.markor.model.AppSettings;
 import net.gsantner.opoc.frontend.base.GsPreferenceFragmentBase;
-import net.gsantner.opoc.frontend.filebrowser.GsFileBrowserOptions;
 
-import java.io.File;
 
 /**
  * Editor-only settings shown as an overlay over the current editor.
@@ -63,6 +62,8 @@ public class EditorSettingsDialogFragment extends DialogFragment {
             );
         }
     }
+
+
 
     public static class EditorSettingsFragment extends GsPreferenceFragmentBase<AppSettings> {
         @Override
@@ -128,6 +129,28 @@ public class EditorSettingsDialogFragment extends DialogFragment {
         }
 
         @Override
+        public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+            super.onActivityResult(requestCode, resultCode, data);
+            if (requestCode != EditorBackgroundImagePicker.REQUEST_CODE || resultCode != Activity.RESULT_OK
+                    || data == null || data.getData() == null) {
+                return;
+            }
+
+            try {
+                final String path = EditorBackgroundImagePicker.copyToAppStorage(requireContext(), data.getData());
+                _appSettings.setEditorBackgroundImagePath(path);
+                _appSettings.setEditorBackgroundEnabled(true);
+                updateBackgroundImageSummary();
+                final DocumentEditAndViewFragment editor = getEditor();
+                if (editor != null) {
+                    editor.applyEditorSettingsLive();
+                }
+            } catch (Exception ignored) {
+                // Keep the current background when the selected image cannot be copied/read.
+            }
+        }
+
+        @Override
         public Boolean onPreferenceClicked(Preference preference, String key, int keyResId) {
             if (keyResId == R.string.pref_key__editor_background_setting) {
                 final DocumentEditAndViewFragment editor = getEditor();
@@ -135,7 +158,7 @@ public class EditorSettingsDialogFragment extends DialogFragment {
                     // Keep the parent dialog alive. Dismissing it and immediately showing a
                     // sibling DialogFragment can race FragmentManager state changes and crash the
                     // editor. The background dialog makes the parent window transparent instead.
-                    EditorBackgroundSettingsDialogFragment.show(editor.getParentFragmentManager(), editor);
+                    EditorBackgroundSettingsDialogFragment.show(getParentFragmentManager(), editor);
                 }
                 return true;
             }
@@ -146,26 +169,16 @@ public class EditorSettingsDialogFragment extends DialogFragment {
                 if (activity == null || editor == null) {
                     return true;
                 }
-                MarkorFileBrowserFactory.showFileDialog(new GsFileBrowserOptions.SelectionListenerAdapter() {
-                    @Override
-                    public void onFsViewerSelected(String request, File file, Integer lineNumber) {
-                        _appSettings.setEditorBackgroundImagePath(file.getAbsolutePath());
-                        _appSettings.setEditorBackgroundEnabled(true);
-                        updateBackgroundImageSummary();
-                        editor.applyEditorSettingsLive();
-                    }
-
-                    @Override
-                    public void onFsViewerConfig(GsFileBrowserOptions.Options dopt) {
-                        dopt.titleText = R.string.editor_background_image_path;
-                        dopt.rootFolder = _appSettings.getNotebookDirectory();
-                        dopt.newDirButtonEnable = false;
-                    }
-                }, getParentFragmentManager(), activity, MarkorFileBrowserFactory.IsMimeImage);
+                try {
+                    startActivityForResult(EditorBackgroundImagePicker.createIntent(),
+                            EditorBackgroundImagePicker.REQUEST_CODE);
+                } catch (android.content.ActivityNotFoundException e) {
+                    // No gallery/media picker is installed. Leave the current value unchanged.
+                }
                 return true;
             }
 
-            if (key.startsWith("pref_key__basic_color_scheme") && !key.contains("_fg_") && !key.contains("_bg_")) {
+            if (key.startsWith("pref_key__editor_basic_color_scheme") && !key.contains("_fg_") && !key.contains("_bg_")) {
                 applyColorScheme(key);
                 _appSettings.setRecreateMainRequired(true);
                 final DocumentEditAndViewFragment editor = getEditor();

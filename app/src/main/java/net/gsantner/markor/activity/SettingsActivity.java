@@ -9,6 +9,8 @@ package net.gsantner.markor.activity;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -337,21 +339,16 @@ public class SettingsActivity extends MarkorBaseActivity {
                     return true;
                 }
                 case R.string.pref_key__editor_background_image_path: {
-                    MarkorFileBrowserFactory.showFileDialog(new GsFileBrowserOptions.SelectionListenerAdapter() {
-                        @Override
-                        public void onFsViewerSelected(String request, File file, final Integer lineNumber) {
-                            _appSettings.setEditorBackgroundImagePath(file.getAbsolutePath());
-                            _appSettings.setEditorBackgroundEnabled(true);
-                            doUpdatePreferences();
-                        }
-
-                        @Override
-                        public void onFsViewerConfig(GsFileBrowserOptions.Options dopt) {
-                            dopt.titleText = R.string.editor_background_image_path;
-                            dopt.rootFolder = _appSettings.getNotebookDirectory();
-                            dopt.newDirButtonEnable = false;
-                        }
-                    }, fragManager, getActivity(), MarkorFileBrowserFactory.IsMimeImage);
+                    final Activity activity = getActivity();
+                    if (activity == null) {
+                        return true;
+                    }
+                    try {
+                        startActivityForResult(EditorBackgroundImagePicker.createIntent(),
+                                EditorBackgroundImagePicker.REQUEST_CODE);
+                    } catch (android.content.ActivityNotFoundException e) {
+                        // No gallery/media picker is installed. Leave the current value unchanged.
+                    }
                     return true;
                 }
                 case R.string.pref_key__basic_color_scheme_markor: {
@@ -448,4 +445,21 @@ public class SettingsActivity extends MarkorBaseActivity {
             }
         }
     }
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != EditorBackgroundImagePicker.REQUEST_CODE || resultCode != Activity.RESULT_OK
+                || data == null || data.getData() == null) {
+            return;
+        }
+        try {
+            final String path = EditorBackgroundImagePicker.copyToAppStorage(this, data.getData());
+            _appSettings.setEditorBackgroundImagePath(path);
+            _appSettings.setEditorBackgroundEnabled(true);
+            doUpdatePreferences();
+        } catch (Exception ignored) {
+            // Keep the current background when the selected image cannot be copied/read.
+        }
+    }
+
 }
