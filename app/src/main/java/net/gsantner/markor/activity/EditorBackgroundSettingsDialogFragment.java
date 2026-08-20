@@ -23,11 +23,8 @@ import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.Fragment;
 
 import net.gsantner.markor.R;
-import net.gsantner.markor.frontend.filebrowser.MarkorFileBrowserFactory;
 import net.gsantner.markor.model.AppSettings;
-import net.gsantner.opoc.frontend.filebrowser.GsFileBrowserOptions;
-
-import java.io.File;
+import net.gsantner.opoc.util.GsContextUtils;
 
 /** Transparent live editor-background tuning overlay. */
 public class EditorBackgroundSettingsDialogFragment extends DialogFragment {
@@ -127,23 +124,19 @@ public class EditorBackgroundSettingsDialogFragment extends DialogFragment {
         choose.setOnClickListener(v -> {
             final Activity activity = getActivity();
             if (activity == null) return;
-            MarkorFileBrowserFactory.showFileDialog(new GsFileBrowserOptions.SelectionListenerAdapter() {
-                @Override
-                public void onFsViewerSelected(String request, File file, Integer lineNumber) {
-                    settings.setEditorBackgroundImagePath(file.getAbsolutePath());
-                    settings.setEditorBackgroundEnabled(true);
-                    enabled.setChecked(true);
-                    updatePath(path, file.getAbsolutePath());
-                    editor.applyEditorSettingsLive();
+            // Opens the system Photos/Gallery picker instead of Markor's own bare-bones file
+            // browser, which listed files by name with no thumbnails - hard to tell images
+            // apart or confirm you'd picked the right one before applying it as a background.
+            GsContextUtils.instance.requestGalleryPicture(activity, pickedPath -> {
+                if (pickedPath == null) {
+                    return; // picker was cancelled, or the pick failed
                 }
-
-                @Override
-                public void onFsViewerConfig(GsFileBrowserOptions.Options dopt) {
-                    dopt.titleText = R.string.editor_background_image_path;
-                    dopt.rootFolder = settings.getNotebookDirectory();
-                    dopt.newDirButtonEnable = false;
-                }
-            }, getParentFragmentManager(), activity, MarkorFileBrowserFactory.IsMimeImage);
+                settings.setEditorBackgroundImagePath(pickedPath);
+                settings.setEditorBackgroundEnabled(true);
+                enabled.setChecked(true);
+                updatePath(path, pickedPath);
+                editor.applyEditorSettingsLive();
+            });
         });
 
         x.setOnSeekBarChangeListener(new SimpleSeekBarListener() {
