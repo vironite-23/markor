@@ -135,7 +135,7 @@ public class EditorSettingsDialogFragment extends DialogFragment {
                     // Keep the parent dialog alive. Dismissing it and immediately showing a
                     // sibling DialogFragment can race FragmentManager state changes and crash the
                     // editor. The background dialog makes the parent window transparent instead.
-                    EditorBackgroundSettingsDialogFragment.show(getParentFragmentManager(), editor);
+                    EditorBackgroundSettingsDialogFragment.show(editor.getParentFragmentManager(), editor);
                 }
                 return true;
             }
@@ -165,7 +165,7 @@ public class EditorSettingsDialogFragment extends DialogFragment {
                 return true;
             }
 
-            if (key.startsWith("pref_key__editor_basic_color_scheme") && !key.contains("_fg_") && !key.contains("_bg_")) {
+            if (key.startsWith("pref_key__basic_color_scheme") && !key.contains("_fg_") && !key.contains("_bg_")) {
                 applyColorScheme(key);
                 _appSettings.setRecreateMainRequired(true);
                 final DocumentEditAndViewFragment editor = getEditor();

@@ -12,6 +12,7 @@ package net.gsantner.opoc.frontend.filebrowser;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Outline;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -294,6 +295,10 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         // (if the folder has one) or the default icon centered in a placeholder rectangle - plus
         // a noticeable highlight background when selected.
         applyGridCoverImageIfAny(holder, file, isGoUp, isVirtual, isFile);
+        if (isGridMode && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            holder.image.postInvalidateOutline();
+            holder.imageFrame.postInvalidateOutline();
+        }
         if (isGridMode) {
             applyGridSelectionHighlight(holder, isSelected);
         }
@@ -853,6 +858,10 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             ilp.height = ViewGroup.LayoutParams.MATCH_PARENT;
             holder.image.setLayoutParams(ilp);
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            holder.image.postInvalidateOutline();
+            holder.imageFrame.postInvalidateOutline();
+        }
     }
 
     /**
@@ -879,6 +888,23 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
      * item is selected, instead of replacing the icon with a checkmark (which would hide a cover
      * image). Falls back to the normal / placeholder background when not selected.
      */
+    private GradientDrawable createGridSelectionDrawable(final View view, final boolean hovered) {
+        final float density = view.getResources().getDisplayMetrics().density;
+        final int minSize = Math.max(1, Math.min(view.getWidth(), view.getHeight()));
+        // Keep the selection indicator proportional to the actual cover/icon size.
+        final float radius = Math.min(
+                AppSettings.get(view.getContext()).getGridCornerRadiusDp() * density,
+                minSize / 2f
+        );
+        final int stroke = Math.max(1, Math.round(minSize * 0.035f));
+        final GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setColor(hovered ? 0x2233A9F4 : 0x33F04B4B);
+        drawable.setCornerRadius(radius);
+        drawable.setStroke(stroke, ContextCompat.getColor(view.getContext(), R.color.accent));
+        return drawable;
+    }
+
     private void applyGridSelectionHighlight(final FilesystemViewerViewHolder holder, final boolean isSelected) {
         if (holder.imageFrame == null) {
             return;
@@ -886,18 +912,13 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
 
         // Keep the normal/placeholder background underneath the image, but put the selection
         // drawable in the FrameLayout foreground so its stroke is drawn ON TOP of the icon/cover.
-        // Previously it was a background and could be completely covered by the ImageView.
         if ("placeholder".equals(holder.imageFrame.getTag(R.id.opoc_filesystem_item__image_frame))) {
             holder.imageFrame.setBackgroundResource(R.drawable.grid_item_bg_placeholder);
         } else {
             holder.imageFrame.setBackgroundResource(R.drawable.grid_item_bg_normal);
         }
 
-        if (isSelected) {
-            holder.imageFrame.setForeground(ContextCompat.getDrawable(_context, R.drawable.grid_item_bg_selected));
-        } else {
-            holder.imageFrame.setForeground(null);
-        }
+        holder.imageFrame.setForeground(isSelected ? createGridSelectionDrawable(holder.imageFrame, false) : null);
     }
 
     private void setGridHoverState(final FilesystemViewerViewHolder holder, final boolean hovered) {
@@ -909,9 +930,9 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                 holder.itemRoot.getTag() instanceof TagContainer
                         ? ((TagContainer) holder.itemRoot.getTag()).file : null);
         if (selected) {
-            holder.imageFrame.setForeground(ContextCompat.getDrawable(_context, R.drawable.grid_item_bg_selected));
+            holder.imageFrame.setForeground(createGridSelectionDrawable(holder.imageFrame, false));
         } else if (hovered) {
-            holder.imageFrame.setForeground(ContextCompat.getDrawable(_context, R.drawable.grid_item_bg_hover));
+            holder.imageFrame.setForeground(createGridSelectionDrawable(holder.imageFrame, true));
         } else {
             holder.imageFrame.setForeground(null);
         }
@@ -920,17 +941,26 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                 _context, hovered ? _dopt.accentColor : _dopt.primaryTextColor));
     }
 
-    private void animateFolderContent(final int direction) {
+    private void prepareFolderAnimation(final int direction) {
         if (_recyclerView == null || direction == 0) {
             return;
         }
         final int width = Math.max(1, _recyclerView.getWidth());
         _recyclerView.animate().cancel();
+        // Put the new page outside the viewport BEFORE notifyDataSetChanged().
+        // This prevents the old/new list from being drawn for one frame (the previous
+        // implementation looked like a flash instead of a slide).
         _recyclerView.setTranslationX(direction > 0 ? width : -width);
+    }
+
+    private void animateFolderContent(final int direction) {
+        if (_recyclerView == null || direction == 0) {
+            return;
+        }
         _recyclerView.animate()
                 .translationX(0f)
-                .setDuration(180L)
-                .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                .setDuration(220L)
+                .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator())
                 .start();
     }
 
@@ -941,10 +971,9 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
 
         final File previousFolder = _currentFolder;
         final boolean folderChanged = !folder.equals(previousFolder);
-        // Forward navigation (opening a child) enters from the right; back navigation enters
-        // from the left, matching the direction of the page transition.
+        // Opening a child enters from the right (+1). Going back enters from the left (-1).
         final int navigationDirection = !folderChanged ? 0 :
-                (GO_BACK_SIGNIFIER == folder || (previousFolder != null && GsFileUtils.isChild(folder, previousFolder)) ? -1 : 1);
+                (GO_BACK_SIGNIFIER == folder || (previousFolder != null && GsFileUtils.isChild(previousFolder, folder)) ? -1 : 1);
 
         if (folderChanged && previousFolder != null && _layoutManager != null) {
             _folderScrollMap.put(previousFolder, _layoutManager.onSaveInstanceState());
@@ -1052,6 +1081,12 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                 // Never let an older worker overwrite the current folder.
                 if (_currentFolder == null || !targetFolder.equals(_currentFolder)) {
                     return;
+                }
+
+                // Position the incoming page off-screen before changing the adapter.
+                // This makes the first rendered frame already belong to the transition.
+                if (folderChanged) {
+                    prepareFolderAnimation(navigationDirection);
                 }
 
                 // Modify all these values in the UI thread
