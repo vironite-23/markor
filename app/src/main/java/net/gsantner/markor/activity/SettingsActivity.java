@@ -456,7 +456,11 @@ public class SettingsActivity extends MarkorBaseActivity {
             final String path = EditorBackgroundImagePicker.copyToAppStorage(this, data.getData());
             _appSettings.setEditorBackgroundImagePath(path);
             _appSettings.setEditorBackgroundEnabled(true);
-            doUpdatePreferences();
+            final GsPreferenceFragmentBase prefFrag = (GsPreferenceFragmentBase) getSupportFragmentManager()
+                    .findFragmentByTag(SettingsFragmentMaster.TAG);
+            if (prefFrag != null) {
+                prefFrag.doUpdatePreferences();
+            }
         } catch (Exception ignored) {
             // Keep the current background when the selected image cannot be copied/read.
         }
