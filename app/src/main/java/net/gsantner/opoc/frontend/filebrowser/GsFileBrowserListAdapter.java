@@ -296,8 +296,8 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         // a noticeable highlight background when selected.
         applyGridCoverImageIfAny(holder, file, isGoUp, isVirtual, isFile);
         if (isGridMode && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            holder.image.postInvalidateOutline();
-            holder.imageFrame.postInvalidateOutline();
+            holder.image.post(() -> holder.image.invalidateOutline());
+            holder.imageFrame.post(() -> holder.imageFrame.invalidateOutline());
         }
         if (isGridMode) {
             applyGridSelectionHighlight(holder, isSelected);
@@ -859,8 +859,8 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             holder.image.setLayoutParams(ilp);
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            holder.image.postInvalidateOutline();
-            holder.imageFrame.postInvalidateOutline();
+            holder.image.post(() -> holder.image.invalidateOutline());
+            holder.imageFrame.post(() -> holder.imageFrame.invalidateOutline());
         }
     }
 
