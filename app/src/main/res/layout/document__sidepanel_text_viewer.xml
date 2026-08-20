@@ -65,6 +65,16 @@
             android:padding="12dp"
             android:src="@drawable/ic_search_black_24dp"
             app:tint="@color/white" />
+
+        <ImageButton
+            android:id="@+id/document__sidepanel_text_viewer__clear"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/side_panel_clear"
+            android:padding="12dp"
+            android:src="@drawable/ic_baseline_clear_24"
+            app:tint="@color/white" />
     </LinearLayout>
 
     <!-- Inline search bar, hidden by default -->
@@ -86,6 +96,26 @@
             android:imeOptions="actionSearch"
             android:inputType="text"
             android:singleLine="true" />
+
+        <ImageButton
+            android:id="@+id/document__sidepanel_text_viewer__search_previous"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/previous_match"
+            android:padding="10dp"
+            android:src="@drawable/ic_baseline_arrow_upward_24"
+            android:tooltipText="@string/previous_match" />
+
+        <ImageButton
+            android:id="@+id/document__sidepanel_text_viewer__search_next"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/next_match"
+            android:padding="10dp"
+            android:src="@drawable/ic_baseline_arrow_downward_24"
+            android:tooltipText="@string/next_match" />
     </LinearLayout>
 
     <androidx.core.widget.NestedScrollView

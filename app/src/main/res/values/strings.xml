@@ -364,6 +364,8 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="select_text">Select text</string>
     <string name="side_panel_no_other_text_files">No other text files in this folder</string>
     <string name="side_panel_search_not_found">Not found</string>
+    <string name="side_panel_clear">Clear panel</string>
+    <string name="side_panel_cleared">Panel cleared</string>
     <string name="edit_mode">Edit Mode</string>
     <string name="mount_storage">Mount storage</string>
     <string name="application_needs_access_to_storage_mount_it">Permission is required to access this storage. Mount the storage to give access. Confirm this dialog to get a popup. Select the storage there and press select.</string>

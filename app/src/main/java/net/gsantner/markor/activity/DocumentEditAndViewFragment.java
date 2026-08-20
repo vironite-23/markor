@@ -1578,9 +1578,13 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
         final ImageButton closeBtn = panel.findViewById(R.id.document__sidepanel_text_viewer__close);
         final ImageButton changeBtn = panel.findViewById(R.id.document__sidepanel_text_viewer__change);
         final ImageButton searchToggleBtn = panel.findViewById(R.id.document__sidepanel_text_viewer__search_toggle);
+        final ImageButton clearBtn = panel.findViewById(R.id.document__sidepanel_text_viewer__clear);
+        final ImageButton searchPreviousBtn = panel.findViewById(R.id.document__sidepanel_text_viewer__search_previous);
+        final ImageButton searchNextBtn = panel.findViewById(R.id.document__sidepanel_text_viewer__search_next);
 
         closeBtn.setOnClickListener(v -> _sidePanelDrawerLayout.closeDrawer(GravityCompat.END));
         changeBtn.setOnClickListener(v -> showSidePanelFilePicker());
+        clearBtn.setOnClickListener(v -> clearSidePanel());
         searchToggleBtn.setOnClickListener(v -> {
             final boolean show = _sidePanelSearchBar.getVisibility() != View.VISIBLE;
             _sidePanelSearchBar.setVisibility(show ? View.VISIBLE : View.GONE);
@@ -1590,11 +1594,13 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
         });
         _sidePanelSearchInput.setOnEditorActionListener((tv, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                performSidePanelSearch(_sidePanelSearchInput.getText().toString());
+                performSidePanelSearch(_sidePanelSearchInput.getText().toString(), true);
                 return true;
             }
             return false;
         });
+        searchPreviousBtn.setOnClickListener(v -> performSidePanelSearch(_sidePanelSearchInput.getText().toString(), false));
+        searchNextBtn.setOnClickListener(v -> performSidePanelSearch(_sidePanelSearchInput.getText().toString(), true));
 
         _sidePanelScroll.setOnScrollChangeListener((NestedScrollView.OnScrollChangeListener) (v, scrollX, scrollY, oldScrollX, oldScrollY) -> _sidePanelPendingScrollY = scrollY);
 
@@ -1820,26 +1826,70 @@ public class DocumentEditAndViewFragment extends MarkorBaseFragment implements F
     }
 
     /**
-     * Very simple case-insensitive search within the panel's displayed (read-only) text: finds
-     * the next match after the current scroll position (wrapping to the top if needed) and
-     * scrolls it into view.
+     * Clears the panel back to its empty state - forgets which sibling file it was showing (both
+     * on screen and the per-folder remembered choice) and hides the search bar. This only clears
+     * the panel's own display; it never touches the underlying file on disk.
      */
-    private void performSidePanelSearch(final String query) {
+    private void clearSidePanel() {
+        persistSidePanelScrollY();
+
+        _appSettings.setSidePanelTextForFolder(getSidePanelFolder(), null);
+        _sidePanelCurrentFile = null;
+        _sidePanelPendingScrollY = -1;
+
+        if (_sidePanelTitle != null) {
+            _sidePanelTitle.setText(R.string.select_text);
+        }
+        if (_sidePanelText != null) {
+            _sidePanelText.setText(R.string.side_panel_no_other_text_files);
+        }
+        if (_sidePanelScroll != null) {
+            _sidePanelScroll.scrollTo(0, 0);
+        }
+        if (_sidePanelSearchBar != null) {
+            _sidePanelSearchBar.setVisibility(View.GONE);
+        }
+        if (_sidePanelSearchInput != null) {
+            _sidePanelSearchInput.setText("");
+        }
+
+        final Activity activity = getActivity();
+        if (activity != null) {
+            Toast.makeText(activity, R.string.side_panel_cleared, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Very simple case-insensitive search within the panel's displayed (read-only) text: finds
+     * the next (forward=true) or previous (forward=false) match relative to the current scroll
+     * position, wrapping around the top/bottom respectively if needed, and scrolls it into view.
+     */
+    private void performSidePanelSearch(final String query, final boolean forward) {
         if (TextUtils.isEmpty(query) || _sidePanelText == null || _sidePanelText.getLayout() == null) {
             return;
         }
 
-        final String haystack = _sidePanelText.getText().toString();
+        final String haystackLower = _sidePanelText.getText().toString().toLowerCase();
         final String needle = query.toLowerCase();
         final android.text.Layout layout = _sidePanelText.getLayout();
-
-        // Search from just after the topmost currently-visible line, so repeated searches step forward
         final int topLine = layout.getLineForVertical(_sidePanelScroll.getScrollY());
-        final int fromIndex = layout.getLineStart(Math.min(topLine + 1, layout.getLineCount() - 1));
 
-        int matchIndex = haystack.toLowerCase().indexOf(needle, fromIndex);
-        if (matchIndex < 0) {
-            matchIndex = haystack.toLowerCase().indexOf(needle); // wrap around to the top
+        int matchIndex;
+        if (forward) {
+            // Search from just after the topmost currently-visible line, so repeated "next" taps step forward
+            final int fromIndex = layout.getLineStart(Math.min(topLine + 1, layout.getLineCount() - 1));
+            matchIndex = haystackLower.indexOf(needle, fromIndex);
+            if (matchIndex < 0) {
+                matchIndex = haystackLower.indexOf(needle); // wrap around to the top
+            }
+        } else {
+            // Search backwards from just before the topmost currently-visible line, so repeated
+            // "previous" taps step backward
+            final int beforeIndex = Math.max(0, layout.getLineStart(topLine) - 1);
+            matchIndex = haystackLower.lastIndexOf(needle, beforeIndex);
+            if (matchIndex < 0) {
+                matchIndex = haystackLower.lastIndexOf(needle); // wrap around to the bottom
+            }
         }
 
         if (matchIndex < 0) {
