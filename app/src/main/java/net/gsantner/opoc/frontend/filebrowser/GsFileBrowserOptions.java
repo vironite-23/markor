@@ -87,6 +87,8 @@ public class GsFileBrowserOptions {
         // Main notebook list can omit the generic folder/choose-directory icon. Grid mode keeps
         // folder icons because they are part of the visual grid.
         public boolean hideGenericFolderIconInList = false;
+        /** Restrict navigation to rootFolder; used by the dedicated Notebook workspace. */
+        public boolean constrainNavigationToRoot = false;
 
         // Visibility of elements
         public boolean

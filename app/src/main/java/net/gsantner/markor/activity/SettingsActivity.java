@@ -11,6 +11,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Build;
@@ -49,6 +50,7 @@ import java.util.Locale;
 import other.writeily.widget.WrMarkorWidgetProvider;
 
 public class SettingsActivity extends MarkorBaseActivity {
+    private static final int REQUEST_NOTEBOOK_FOLDER = 7101;
 
     @SuppressWarnings("WeakerAccess")
     public static class RESULT {
@@ -112,6 +114,38 @@ public class SettingsActivity extends MarkorBaseActivity {
     protected void onStop() {
         setResult(activityRetVal);
         super.onStop();
+    }
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQUEST_NOTEBOOK_FOLDER || resultCode != RESULT_OK || data == null || data.getData() == null) {
+            return;
+        }
+
+        final Uri treeUri = data.getData();
+        try {
+            int flags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            if (flags == 0) {
+                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION;
+            }
+            getContentResolver().takePersistableUriPermission(treeUri, flags);
+        } catch (SecurityException ignored) {
+            // The picker may return a non-persistable grant. The path is still stored as a fallback.
+        }
+
+        final File selected = AppSettings.resolveNotebookDirectoryUri(treeUri);
+        if (selected == null) {
+            Toast.makeText(this, R.string.notebook_folder_picker_unsupported_location, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        _appSettings.setNotebookDirectory(selected);
+        _appSettings.setNotebookDirectoryUri(treeUri);
+        _appSettings.setRecreateMainRequired(true);
+        final GsPreferenceFragmentBase<?> fragment = (GsPreferenceFragmentBase<?>) getSupportFragmentManager().findFragmentByTag(SettingsFragmentMaster.TAG);
+        if (fragment instanceof SettingsFragmentMaster) {
+            ((SettingsFragmentMaster) fragment).doUpdatePreferences();
+        }
     }
 
     public static abstract class MarkorSettingsFragment extends GsPreferenceFragmentBase<AppSettings> {
@@ -284,20 +318,23 @@ public class SettingsActivity extends MarkorBaseActivity {
                 }
 
                 case R.string.pref_key__notebook_directory: {
-                    MarkorFileBrowserFactory.showFolderDialog(new GsFileBrowserOptions.SelectionListenerAdapter() {
-                        @Override
-                        public void onFsViewerSelected(String request, File file, final Integer lineNumber) {
-                            _appSettings.setNotebookDirectory(file);
-                            _appSettings.setRecreateMainRequired(true);
-                            doUpdatePreferences();
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+                        Toast.makeText(getContext(), R.string.notebook_folder_picker_requires_android_5, Toast.LENGTH_LONG).show();
+                        return true;
+                    }
+                    final Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                            | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+                            | Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        final Uri currentUri = _appSettings.getNotebookDirectoryUri();
+                        if (currentUri != null) {
+                            intent.putExtra("android.content.extra.SHOW_ADVANCED", true);
+                            intent.putExtra("android.provider.extra.INITIAL_URI", currentUri);
                         }
-
-                        @Override
-                        public void onFsViewerConfig(GsFileBrowserOptions.Options dopt) {
-                            dopt.titleText = R.string.select_storage_folder;
-                            dopt.rootFolder = _appSettings.getNotebookDirectory();
-                        }
-                    }, fragManager, getActivity());
+                    }
+                    startActivityForResult(intent, REQUEST_NOTEBOOK_FOLDER);
                     return true;
                 }
                 case R.string.pref_key__quicknote_filepath: {

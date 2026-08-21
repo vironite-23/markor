@@ -429,7 +429,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             _dopt.listener.onFsViewerConfig(_dopt);
         }
 
-        if (savedInstanceState.containsKey(EXTRA_CURRENT_FOLDER)) {
+        if (savedInstanceState.containsKey(EXTRA_CURRENT_FOLDER) && !_dopt.constrainNavigationToRoot) {
             final String path = savedInstanceState.getString(EXTRA_CURRENT_FOLDER);
             if (path != null) {
                 final File f = new File(path);
@@ -457,6 +457,12 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
     }
 
     public void setCurrentFolder(final File folder) {
+        if (folder == null || (_dopt.constrainNavigationToRoot && !isWithinRoot(folder))) {
+            return;
+        }
+        if (_currentFolder != null && _currentFolder.equals(folder)) {
+            return;
+        }
         loadFolder(folder, GsFileUtils.isChild(_currentFolder, folder) ? folder : null);
     }
 
@@ -535,6 +541,9 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                     } else {
                         // No pre-selection
                         if (data.file.isDirectory() || _virtualMapping.containsKey(data.file)) {
+                            if (_dopt.constrainNavigationToRoot && !isWithinRoot(data.file)) {
+                                return;
+                            }
                             loadFolder(data.file, data.file.equals(_goUpFile) ? _currentFolder : null);
                         } else if (data.file.isFile()) {
                             _dopt.listener.onFsViewerSelected(_dopt.requestId, data.file, null);
@@ -544,7 +553,11 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                 return;
             }
             case R.id.ui__filesystem_dialog__home: {
-                loadFolder(_dopt.rootFolder, _currentFolder);
+                if (_dopt.constrainNavigationToRoot) {
+                    loadFolder(_dopt.rootFolder, _currentFolder);
+                } else {
+                    loadFolder(_dopt.rootFolder, _currentFolder);
+                }
                 return;
             }
             case R.id.ui__filesystem_dialog__button_ok: {
@@ -640,6 +653,9 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
     }
 
     public boolean goBack() {
+        if (_dopt.constrainNavigationToRoot && isCurrentFolderHome()) {
+            return false;
+        }
         if (!_backStack.isEmpty()) {
             File show = _currentFolder;
             if (VIRTUAL_STORAGE_ROOT.equals(_backStack.peek())) {
@@ -981,6 +997,9 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         if (folder == null || _recyclerView == null) {
             return;
         }
+        if (_dopt.constrainNavigationToRoot && !isWithinRoot(resolveVirtualFile(folder))) {
+            return;
+        }
 
         final File previousFolder = _currentFolder;
         final boolean folderChanged = !folder.equals(previousFolder);
@@ -1188,6 +1207,22 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         return _dopt;
     }
 
+    private boolean isWithinRoot(final File folder) {
+        if (folder == null || _dopt.rootFolder == null) {
+            return false;
+        }
+        final File root = _dopt.rootFolder;
+        try {
+            final java.nio.file.Path rootPath = root.getCanonicalFile().toPath();
+            final java.nio.file.Path folderPath = folder.getCanonicalFile().toPath();
+            return folderPath.equals(rootPath) || folderPath.startsWith(rootPath);
+        } catch (Exception ignored) {
+            final String rootPath = root.getAbsolutePath();
+            final String folderPath = folder.getAbsolutePath();
+            return folderPath.equals(rootPath) || folderPath.startsWith(rootPath + File.separator);
+        }
+    }
+
     public boolean isCurrentFolderHome() {
         return _currentFolder != null && _dopt.rootFolder != null && _dopt.rootFolder.getAbsolutePath().equals(_currentFolder.getAbsolutePath());
     }
@@ -1337,6 +1372,9 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         }
 
         final File parent = folder.getParentFile();
+        if (_dopt.constrainNavigationToRoot) {
+            return isCurrentFolderHome() || parent == null || !isWithinRoot(parent) ? null : parent;
+        }
         if ((parent != null && parent.canWrite()) || GsFileUtils.isChild(VIRTUAL_STORAGE_ROOT, parent)) {
             return parent;
         }

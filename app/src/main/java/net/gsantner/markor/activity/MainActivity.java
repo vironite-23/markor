@@ -473,6 +473,9 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
         if (pos == tabIdToPos(R.id.nav_notebook)) {
             _fab.show();
             hideKeyboard();
+            if (_notebook != null && _notebook.getAdapter() != null) {
+                _notebook.getAdapter().setCurrentFolder(_appSettings.getNotebookDirectory());
+            }
         } else {
             _fab.hide();
         }
@@ -494,6 +497,7 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
                     dopt.startFolder = _startFolder;
                     dopt.doSelectMultiple = dopt.doSelectFolder = dopt.doSelectFile = true;
                     dopt.hideGenericFolderIconInList = true;
+                    dopt.constrainNavigationToRoot = true;
                     dopt.mountedStorageFolder = _cu.getStorageAccessFolder(MainActivity.this);
                 }
 

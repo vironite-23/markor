@@ -84,6 +84,8 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="save_location">Save location</string>
     <string name="saved_location_to">Saved to %s</string>
     <string name="select_storage_folder">Select storage folder</string>
+    <string name="notebook_folder_picker_requires_android_5">Notebook Folder selection requires Android 5.0 or newer.</string>
+    <string name="notebook_folder_picker_unsupported_location">This storage location cannot be used as a Notebook Folder by this version of Markor.</string>
     <string name="licenses">Licenses</string>
     <string name="changelog">Changelog</string>
     <string name="more_info">More info</string>
@@ -105,7 +107,7 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="undo">Undo</string>
     <string name="redo">Redo</string>
     <string name="more">More</string>
-    <string name="notebook">Notebook</string>
+    <string name="notebook">Notebook Folder</string>
     <string name="help">Help</string>
     <string name="todo_list">To-Do List</string>
     <string name="task">Task</string>
@@ -328,6 +330,7 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="appdata_sdcard">AppData (SD Card)</string>
     <string name="internal_storage">Internal storage</string>
     <string name="open_the_document_from_main_view">You can open the document from main view on the bottom, the file browser or the launcher. There is also a option to append text shared into Markor.</string>
+    <string name="notebook_folder_missing_select_new">Notebook folder is unavailable. Please select a new Notebook Folder in Settings.</string>
     <string name="notebook_is_the_home_of_your_files">Notebook is the folder that Markor loads in the file browser when the app is started. It is the home folder of your files.</string>
     <string name="quicknote_is_the_fastest_option_to_write_down_notes">QuickNote is the fastest option to write down notes. It is a file in Markdown format with default location &gt;Notebook/QuickNote.md&lt;, you can set a custom filepath in the settings.</string>
     <string name="todo_is_the_easiest_way_">Manage your tasks with ToDo. It is a file in todo.txt format with default location &gt;Notebook/todo.txt&lt;, you can set a custom filepath in the settings.</string>

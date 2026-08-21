@@ -9,6 +9,8 @@ package net.gsantner.markor.model;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.net.Uri;
+import android.provider.DocumentsContract;
 import android.content.res.AssetManager;
 import android.graphics.Color;
 import android.os.Build;
@@ -95,7 +97,78 @@ public class AppSettings extends GsSharedPreferencesPropertyBackend {
         setString(R.string.pref_key__notebook_directory, GsFileUtils.getPath(file));
     }
 
+    public void setNotebookDirectoryUri(final Uri uri) {
+        setString(R.string.pref_key__notebook_directory_uri, uri != null ? uri.toString() : "");
+    }
+
+    @Nullable
+    public Uri getNotebookDirectoryUri() {
+        final String value = getString(R.string.pref_key__notebook_directory_uri, "");
+        if (value.isEmpty()) {
+            return null;
+        }
+        try {
+            return Uri.parse(value);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    @Nullable
+    public static File resolveNotebookDirectoryUri(@Nullable final Uri uri) {
+        if (uri == null || !DocumentsContract.isTreeUri(uri)) {
+            return null;
+        }
+        try {
+            final String documentId = DocumentsContract.getTreeDocumentId(uri);
+            if (documentId == null) {
+                return null;
+            }
+            final int separator = documentId.indexOf(':');
+            if (separator > 0) {
+                final String volume = documentId.substring(0, separator);
+                final String relativePath = documentId.substring(separator + 1);
+                if ("primary".equalsIgnoreCase(volume)) {
+                    return relativePath.isEmpty()
+                            ? Environment.getExternalStorageDirectory()
+                            : new File(Environment.getExternalStorageDirectory(), relativePath);
+                }
+                final File storageRoot = new File("/storage", volume);
+                return relativePath.isEmpty() ? storageRoot : new File(storageRoot, relativePath);
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    @Nullable
+    public File getNotebookDirectoryFromUri() {
+        return resolveNotebookDirectoryUri(getNotebookDirectoryUri());
+    }
+
+    public boolean isNotebookDirectoryValid(final Context context) {
+        final Uri uri = getNotebookDirectoryUri();
+        if (uri != null && context != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            boolean persisted = false;
+            for (android.content.UriPermission permission : context.getContentResolver().getPersistedUriPermissions()) {
+                if (uri.equals(permission.getUri()) && permission.isReadPermission()) {
+                    persisted = true;
+                    break;
+                }
+            }
+            if (!persisted) {
+                return false;
+            }
+        }
+        final File directory = getNotebookDirectory();
+        return directory.isDirectory() && directory.canRead();
+    }
+
     public File getNotebookDirectory() {
+        final File fromUri = getNotebookDirectoryFromUri();
+        if (fromUri != null) {
+            return fromUri;
+        }
         return new File(getString(R.string.pref_key__notebook_directory, getDefaultNotebookFile().getAbsolutePath()));
     }
 
