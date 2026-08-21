@@ -22,6 +22,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Pair;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -88,6 +89,9 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
     private RecyclerView _recyclerList;
     private SwipeRefreshLayout _swipe;
     private TextView _emptyHint;
+    private View _notebookHeader;
+    private TextView _notebookHeaderTitle;
+    private TextView _notebookHeaderPath;
 
     private GsFileBrowserListAdapter _filesystemViewerAdapter;
     private GsFileBrowserOptions.Options _dopt;
@@ -114,6 +118,12 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
         _recyclerList = root.findViewById(R.id.ui__filesystem_dialog__list);
         _swipe = root.findViewById(R.id.pull_to_refresh);
         _emptyHint = root.findViewById(R.id.empty_hint);
+        _notebookHeader = root.findViewById(R.id.notebook_header);
+        _notebookHeaderTitle = root.findViewById(R.id.notebook_header_title);
+        _notebookHeaderPath = root.findViewById(R.id.notebook_header_path);
+        if (_notebookHeader != null) {
+            _notebookHeader.setVisibility(_dopt != null && _dopt.constrainNavigationToRoot ? View.VISIBLE : View.GONE);
+        }
         _cu = new MarkorContextUtils(activity);
         _appSettings = AppSettings.get(activity);
 
@@ -187,12 +197,43 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
 
         _dopt.sortOrder = _appSettings.getFolderSortOrder(newFolder);
         _dopt.viewMode = _appSettings.getFileBrowserViewMode(newFolder);
+        updateNotebookHeader(newFolder);
         _dopt.viewModeIsFolderLocal = _appSettings.isFileBrowserViewModeFolderLocal(newFolder);
         applyViewMode();
         _dopt.favouriteFiles = _appSettings.getFavouriteFiles();
         _dopt.recentFiles = _appSettings.getRecentFiles();
         _dopt.popularFiles = _appSettings.getPopularFiles();
         _dopt.descriptionFormat = _appSettings.getString(R.string.pref_key__file_description_format, "");
+    }
+
+    private void updateNotebookHeader(final File folder) {
+        if (_notebookHeaderTitle == null || _notebookHeaderPath == null || folder == null) {
+            return;
+        }
+        final File root = _dopt.rootFolder;
+        String title = folder.getName();
+        if (TextUtils.isEmpty(title) && root != null) {
+            title = root.getName();
+        }
+        if (TextUtils.isEmpty(title)) {
+            title = getString(R.string.notebook);
+        }
+        _notebookHeaderTitle.setText(title);
+
+        String path = folder.getAbsolutePath();
+        if (root != null) {
+            try {
+                final String rootPath = root.getCanonicalPath();
+                final String folderPath = folder.getCanonicalPath();
+                if (folderPath.equals(rootPath)) {
+                    path = getString(R.string.notebook);
+                } else if (folderPath.startsWith(rootPath + File.separator)) {
+                    path = getString(R.string.notebook) + " / " + folderPath.substring(rootPath.length() + 1);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        _notebookHeaderPath.setText(path);
     }
 
     @Override
@@ -232,7 +273,12 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
         }
 
         updateMenuItems();
-        if (_dopt != null && _dopt.constrainNavigationToRoot && (_dopt.rootFolder == null || !_appSettings.isNotebookDirectoryValid(getContext()))) {
+        final boolean notebookMode = _dopt != null && _dopt.constrainNavigationToRoot;
+        final boolean notebookValid = notebookMode && _dopt.rootFolder != null && _appSettings.isNotebookDirectoryValid(getContext());
+        if (_notebookHeader != null) {
+            _notebookHeader.setVisibility(notebookValid ? View.VISIBLE : View.GONE);
+        }
+        if (notebookMode && !notebookValid) {
             _emptyHint.setText(R.string.notebook_folder_missing_select_new);
             _emptyHint.setVisibility(View.VISIBLE);
         } else {
@@ -280,6 +326,14 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
             _fragmentMenu.findItem(R.id.action_copy_selected_items).setVisible((selMulti1 || selMultiMore) && selWritable && !_cu.isUnderStorageAccessFolder(getContext(), getCurrentFolder(), true));
             _fragmentMenu.findItem(R.id.action_share_files).setVisible(selFilesOnly && (selMulti1 || selMultiMore) && !_cu.isUnderStorageAccessFolder(getContext(), getCurrentFolder(), true));
             _fragmentMenu.findItem(R.id.action_go_to).setVisible(!_dopt.constrainNavigationToRoot && !_filesystemViewerAdapter.areItemsSelected());
+            final MenuItem notebookFolderItem = _fragmentMenu.findItem(R.id.action_notebook_folder);
+            if (notebookFolderItem != null) {
+                notebookFolderItem.setVisible(_dopt.constrainNavigationToRoot && !_filesystemViewerAdapter.areItemsSelected());
+            }
+            final MenuItem notebookRefreshItem = _fragmentMenu.findItem(R.id.action_refresh_notebook);
+            if (notebookRefreshItem != null) {
+                notebookRefreshItem.setVisible(_dopt.constrainNavigationToRoot && !_filesystemViewerAdapter.areItemsSelected());
+            }
             _fragmentMenu.findItem(R.id.action_sort).setVisible(_filesystemViewerAdapter.isCurrentFolderSortable() && !_filesystemViewerAdapter.areItemsSelected());
             _fragmentMenu.findItem(R.id.action_view_mode).setVisible(!_filesystemViewerAdapter.areItemsSelected());
             _fragmentMenu.findItem(R.id.action_import).setVisible(!_filesystemViewerAdapter.areItemsSelected() && !_filesystemViewerAdapter.isCurrentFolderVirtual());
@@ -421,6 +475,19 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
             }
             case R.id.action_search: {
                 executeSearchAction();
+                return true;
+            }
+            case R.id.action_refresh_notebook: {
+                if (_filesystemViewerAdapter != null) {
+                    _filesystemViewerAdapter.reloadCurrentFolder();
+                }
+                return true;
+            }
+            case R.id.action_notebook_folder: {
+                final Activity activity = getActivity();
+                if (activity != null) {
+                    activity.startActivity(new android.content.Intent(activity, net.gsantner.markor.activity.SettingsActivity.class));
+                }
                 return true;
             }
             case R.id.action_go_to: {

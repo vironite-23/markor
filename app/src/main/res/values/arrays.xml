@@ -151,4 +151,16 @@
         <item translatable="false">5</item>
         <item translatable="false">6</item>
     </string-array>
+
+    <string-array name="pref_arrdisp__notebook_view_mode">
+        <item>List</item>
+        <item>Detailed list</item>
+        <item>Grid</item>
+    </string-array>
+    <string-array name="pref_arrkeys__notebook_view_mode" translatable="false">
+        <item>LIST</item>
+        <item>DETAILED_LIST</item>
+        <item>GRID</item>
+    </string-array>
+
 </resources>

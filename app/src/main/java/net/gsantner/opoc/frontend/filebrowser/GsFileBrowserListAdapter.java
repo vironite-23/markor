@@ -986,9 +986,11 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         final int width = Math.max(1, _recyclerView.getWidth());
         _recyclerView.animate().cancel();
         _recyclerView.setTranslationX(direction > 0 ? width : -width);
+        _recyclerView.setAlpha(0.92f);
         _recyclerView.animate()
                 .translationX(0f)
-                .setDuration(180L)
+                .alpha(1f)
+                .setDuration(220L)
                 .setInterpolator(new android.view.animation.DecelerateInterpolator())
                 .start();
     }
@@ -1038,6 +1040,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                 final int width = Math.max(1, _recyclerView.getWidth());
                 _recyclerView.animate().cancel();
                 _recyclerView.setTranslationX(navigationDirection > 0 ? width : -width);
+                _recyclerView.setAlpha(0.92f);
             }
 
             // Clear the old folder immediately. Without this, RecyclerView keeps drawing the old

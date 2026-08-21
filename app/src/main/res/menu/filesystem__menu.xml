@@ -99,6 +99,18 @@
         android:icon="@drawable/ic_search_black_24dp"
         android:title="@string/search"
         app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_notebook_folder"
+        android:icon="@drawable/ic_folder_white_24dp"
+        android:title="@string/notebook_folder"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_refresh_notebook"
+        android:icon="@drawable/ic_sync_black_24dp"
+        android:title="@string/refresh"
+        app:showAsAction="never" />
     <item
         android:id="@+id/action_import"
         android:icon="@drawable/ic_file_white_24dp"

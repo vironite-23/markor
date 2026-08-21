@@ -200,6 +200,9 @@ public class SettingsActivity extends MarkorBaseActivity {
             updateSummary(R.string.pref_key__notebook_directory,
                     _cu.htmlToSpanned("<small><small>" + _appSettings.getNotebookDirectory().getAbsolutePath().replace(remove, "") + "</small></small>")
             );
+            final GsFileBrowserOptions.FileBrowserViewMode notebookViewMode =
+                    _appSettings.getFileBrowserViewMode(_appSettings.getNotebookDirectory());
+            updateSummary(R.string.pref_key__notebook_view_mode, notebookViewMode.name());
             updateSummary(R.string.pref_key__quicknote_filepath,
                     _cu.htmlToSpanned("<small><small>" + _appSettings.getQuickNoteFile().getAbsolutePath().replace(remove, "") + "</small></small>")
             );
@@ -288,6 +291,11 @@ public class SettingsActivity extends MarkorBaseActivity {
             } else if (eq(key, R.string.pref_key__notebook_directory, R.string.pref_key__quicknote_filepath, R.string.pref_key__todo_filepath)) {
                 WrMarkorWidgetProvider.updateLauncherWidgets();
                 TodoWidgetProvider.updateTodoWidgets();
+            } else if (eq(key, R.string.pref_key__notebook_view_mode)) {
+                final String value = prefs.getString(key, GsFileBrowserOptions.FileBrowserViewMode.DETAILED_LIST.name());
+                final GsFileBrowserOptions.FileBrowserViewMode mode = GsFileBrowserOptions.FileBrowserViewMode.fromString(value);
+                _appSettings.setFileBrowserViewMode(_appSettings.getNotebookDirectory(), mode);
+                _appSettings.setFileBrowserViewMode(null, mode);
             }
         }
 

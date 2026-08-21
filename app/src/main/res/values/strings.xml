@@ -108,6 +108,11 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="redo">Redo</string>
     <string name="more">More</string>
     <string name="notebook">Notebook Folder</string>
+    <string name="notebook_folder">Notebook folder</string>
+    <string name="notebook_workspace">Notebook workspace</string>
+    <string name="notebook_workspace_summary">Dedicated notes workspace. Navigation stays inside the configured Notebook folder.</string>
+    <string name="notebook_view_mode">Notebook view mode</string>
+    <string name="notebook_view_mode_summary">Choose List, Detailed list, or Grid for the Notebook workspace.</string>
     <string name="help">Help</string>
     <string name="todo_list">To-Do List</string>
     <string name="task">Task</string>

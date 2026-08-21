@@ -21,10 +21,6 @@
 
         <PreferenceCategory android:title="@string/save_location">
             <Preference
-                android:icon="@drawable/ic_save_black_24dp"
-                android:key="@string/pref_key__notebook_directory"
-                android:title="@string/notebook" />
-            <Preference
                 android:icon="@drawable/ic_lightning_black_24dp"
                 android:key="@string/pref_key__quicknote_filepath"
                 android:summary="@string/document_to_be_loaded_and_saved_as_witharg"
@@ -110,6 +106,80 @@
 
     </PreferenceScreen>
 
+
+    <!-- Notebook workspace screen, organized like Lite Writer's note/book settings. -->
+    <PreferenceScreen
+        android:icon="@drawable/ic_folder_white_24dp"
+        android:summary="@string/notebook_workspace_summary"
+        android:title="@string/notebook_workspace">
+
+        <PreferenceCategory android:title="@string/general">
+            <Preference
+                android:icon="@drawable/ic_folder_white_24dp"
+                android:key="@string/pref_key__notebook_directory"
+                android:title="@string/notebook_folder" />
+
+            <ListPreference
+                android:defaultValue="DETAILED_LIST"
+                android:dialogTitle="@string/notebook_view_mode"
+                android:entries="@array/pref_arrdisp__notebook_view_mode"
+                android:entryValues="@array/pref_arrkeys__notebook_view_mode"
+                android:icon="@drawable/ic_view_module_black_24dp"
+                android:key="@string/pref_key__notebook_view_mode"
+                android:summary="@string/notebook_view_mode_summary"
+                android:title="@string/notebook_view_mode" />
+
+            <CheckBoxPreference
+                android:defaultValue="false"
+                android:icon="@android:drawable/ic_menu_view"
+                android:key="@string/pref_key__file_browser_hide_non_text_files"
+                android:summary="@string/file_browser_hide_non_text_files_description"
+                android:title="@string/file_browser_hide_non_text_files" />
+        </PreferenceCategory>
+
+        <PreferenceCategory android:title="@string/grid">
+            <androidx.preference.EditTextPreference
+                android:defaultValue="Sampul.jpg"
+                android:icon="@drawable/ic_view_module_black_24dp"
+                android:key="@string/pref_key__grid_cover_filename"
+                android:summary="@string/grid_cover_filename_description"
+                android:title="@string/grid_cover_filename" />
+            <androidx.preference.EditTextPreference
+                android:defaultValue="64"
+                android:icon="@drawable/ic_view_module_black_24dp"
+                android:key="@string/pref_key__grid_cover_width_dp"
+                android:inputType="number"
+                android:title="@string/grid_cover_width_dp" />
+            <androidx.preference.EditTextPreference
+                android:defaultValue="88"
+                android:icon="@drawable/ic_view_module_black_24dp"
+                android:key="@string/pref_key__grid_cover_height_dp"
+                android:inputType="number"
+                android:title="@string/grid_cover_height_dp" />
+            <androidx.preference.EditTextPreference
+                android:defaultValue="8"
+                android:icon="@drawable/ic_view_module_black_24dp"
+                android:key="@string/pref_key__grid_spacing_dp"
+                android:inputType="number"
+                android:summary="@string/grid_spacing_dp_description"
+                android:title="@string/grid_spacing_dp" />
+            <androidx.preference.EditTextPreference
+                android:defaultValue="12"
+                android:icon="@drawable/ic_view_module_black_24dp"
+                android:key="@string/pref_key__grid_side_padding_dp"
+                android:inputType="number"
+                android:summary="@string/grid_side_padding_dp_description"
+                android:title="@string/grid_side_padding_dp" />
+            <androidx.preference.EditTextPreference
+                android:defaultValue="10"
+                android:icon="@drawable/ic_view_module_black_24dp"
+                android:key="@string/pref_key__grid_corner_radius_dp"
+                android:inputType="number"
+                android:summary="@string/grid_corner_radius_dp_description"
+                android:title="@string/grid_corner_radius_dp" />
+        </PreferenceCategory>
+    </PreferenceScreen>
+
     <!-- Document browser screen -->
     <PreferenceScreen
         android:icon="@drawable/ic_border_outer_black_24dp"
@@ -186,51 +256,6 @@
                 android:icon="@android:drawable/ic_menu_info_details"
                 android:key="@string/pref_key__file_description_format"
                 android:title="@string/file_description_format" />
-            <androidx.preference.EditTextPreference
-                android:defaultValue="Sampul.jpg"
-                android:icon="@drawable/ic_view_module_black_24dp"
-                android:key="@string/pref_key__grid_cover_filename"
-                android:summary="@string/grid_cover_filename_description"
-                android:title="@string/grid_cover_filename" />
-            <androidx.preference.EditTextPreference
-                android:defaultValue="64"
-                android:icon="@drawable/ic_view_module_black_24dp"
-                android:key="@string/pref_key__grid_cover_width_dp"
-                android:inputType="number"
-                android:title="@string/grid_cover_width_dp" />
-            <androidx.preference.EditTextPreference
-                android:defaultValue="88"
-                android:icon="@drawable/ic_view_module_black_24dp"
-                android:key="@string/pref_key__grid_cover_height_dp"
-                android:inputType="number"
-                android:title="@string/grid_cover_height_dp" />
-            <androidx.preference.EditTextPreference
-                android:defaultValue="8"
-                android:icon="@drawable/ic_view_module_black_24dp"
-                android:key="@string/pref_key__grid_spacing_dp"
-                android:inputType="number"
-                android:summary="@string/grid_spacing_dp_description"
-                android:title="@string/grid_spacing_dp" />
-            <androidx.preference.EditTextPreference
-                android:defaultValue="12"
-                android:icon="@drawable/ic_view_module_black_24dp"
-                android:key="@string/pref_key__grid_side_padding_dp"
-                android:inputType="number"
-                android:summary="@string/grid_side_padding_dp_description"
-                android:title="@string/grid_side_padding_dp" />
-            <androidx.preference.EditTextPreference
-                android:defaultValue="10"
-                android:icon="@drawable/ic_view_module_black_24dp"
-                android:key="@string/pref_key__grid_corner_radius_dp"
-                android:inputType="number"
-                android:summary="@string/grid_corner_radius_dp_description"
-                android:title="@string/grid_corner_radius_dp" />
-            <androidx.preference.CheckBoxPreference
-                android:defaultValue="false"
-                android:icon="@android:drawable/ic_menu_view"
-                android:key="@string/pref_key__file_browser_hide_non_text_files"
-                android:summary="@string/file_browser_hide_non_text_files_description"
-                android:title="@string/file_browser_hide_non_text_files" />
         </PreferenceCategory>
 
         <PreferenceCategory android:title="@string/backup">
