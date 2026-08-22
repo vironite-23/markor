@@ -151,4 +151,6 @@
         <item translatable="false">5</item>
         <item translatable="false">6</item>
     </string-array>
+    <string-array name="pref_arrdisp__book_view_mode"><item>@string/book_grid</item><item>@string/book_detailed_list</item></string-array>
+    <string-array name="pref_arrkeys__book_view_mode"><item>GRID</item><item>DETAILED_LIST</item></string-array>
 </resources>

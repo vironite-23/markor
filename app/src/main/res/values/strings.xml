@@ -84,6 +84,10 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="save_location">Save location</string>
     <string name="saved_location_to">Saved to %s</string>
     <string name="select_storage_folder">Select storage folder</string>
+    <string name="could_not_access_selected_folder">Could not access the selected folder</string>
+    <string name="notebook_folder_unavailable_title">Notebook folder unavailable</string>
+    <string name="notebook_folder_unavailable_description">The configured Notebook folder no longer exists, or access to it was revoked. Please select a new Notebook folder.</string>
+    <string name="select_notebook_folder">Select Notebook folder</string>
     <string name="licenses">Licenses</string>
     <string name="changelog">Changelog</string>
     <string name="more_info">More info</string>
@@ -548,4 +552,19 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="static_cursor">Static cursor</string>
     <string name="disable_cursor_blinking">Disable cursor blinking</string>
     <string name="folder_local">Folder local</string>
+
+    <string name="book">Book</string>
+    <string name="book_settings">Book</string>
+    <string name="book_tab_enabled">Show Book tab</string>
+    <string name="book_tab_enabled_summary">Show the Book tab before File</string>
+    <string name="book_view_mode">Book viewing mode</string>
+    <string name="book_view_mode_summary">Choose Grid or Detailed list for folders</string>
+    <string name="book_grid">Grid</string>
+    <string name="book_detailed_list">Detailed list</string>
+    <string name="folder_count">%1$d folders</string>
+    <string name="file_count">%1$d files</string>
+
+
+    <string name="pref_key__book_tab_enabled">book_tab_enabled</string>
+    <string name="pref_key__book_view_mode">book_view_mode</string>
 </resources>

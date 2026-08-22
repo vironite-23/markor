@@ -83,6 +83,19 @@ public class AppSettings extends GsSharedPreferencesPropertyBackend {
         }
     }
 
+    public boolean isBookTabEnabled() {
+        return getBool(R.string.pref_key__book_tab_enabled, true);
+    }
+
+    public GsFileBrowserOptions.FileBrowserViewMode getBookViewMode() {
+        return GsFileBrowserOptions.FileBrowserViewMode.fromString(
+                getString(R.string.pref_key__book_view_mode, GsFileBrowserOptions.FileBrowserViewMode.GRID.name()));
+    }
+
+    public void setBookViewMode(GsFileBrowserOptions.FileBrowserViewMode mode) {
+        setString(R.string.pref_key__book_view_mode, mode == null ? GsFileBrowserOptions.FileBrowserViewMode.GRID.name() : mode.name());
+    }
+
     public boolean isLoadLastDirectoryAtStartup() {
         return getBool(R.string.pref_key__load_last_directory_at_startup, false);
     }
@@ -91,12 +104,55 @@ public class AppSettings extends GsSharedPreferencesPropertyBackend {
         return getBool(R.string.pref_key__is_preview_first, false);
     }
 
+    /**
+     * Sets the Notebook root folder from a Storage Access Framework directory pick (see
+     * {@link net.gsantner.opoc.util.GsContextUtils#requestDirectory}): persists both the
+     * resolved {@link File} path (used everywhere else in the app - editor, wikitext links,
+     * backups, etc. all work with plain Files) and the tree {@link android.net.Uri} itself, so
+     * next launch can confirm the permission grant is still valid (see
+     * {@link #isNotebookDirectoryAccessible(Context)}) rather than silently trusting a stale path.
+     */
+    public void setNotebookDirectory(final File file, final android.net.Uri treeUri) {
+        setNotebookDirectory(file);
+        setString(R.string.pref_key__notebook_directory_tree_uri, treeUri == null ? "" : treeUri.toString());
+    }
+
     public void setNotebookDirectory(final File file) {
         setString(R.string.pref_key__notebook_directory, GsFileUtils.getPath(file));
     }
 
     public File getNotebookDirectory() {
         return new File(getString(R.string.pref_key__notebook_directory, getDefaultNotebookFile().getAbsolutePath()));
+    }
+
+    @Nullable
+    public android.net.Uri getNotebookDirectoryTreeUri() {
+        final String uriStr = getString(R.string.pref_key__notebook_directory_tree_uri, "");
+        if (GsTextUtils.isNullOrEmpty(uriStr)) {
+            return null;
+        }
+        try {
+            return android.net.Uri.parse(uriStr);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    /**
+     * Whether the configured Notebook root folder is currently safe to browse: it must still
+     * exist and be readable, and - if it was picked via the directory picker (SAF) rather than
+     * being the untouched default - its persisted permission grant must still be valid (the user
+     * may have revoked it in system settings, or the folder may have been on now-unplugged
+     * removable storage). The Notebook tab checks this before loading so a missing/revoked folder
+     * shows a clear "pick a new folder" state instead of crashing or silently browsing elsewhere.
+     */
+    public boolean isNotebookDirectoryAccessible(final Context context) {
+        final File dir = getNotebookDirectory();
+        if (dir == null || !dir.isDirectory() || !dir.canRead()) {
+            return false;
+        }
+        final android.net.Uri treeUri = getNotebookDirectoryTreeUri();
+        return treeUri == null || _cu.isTreeUriPermissionValid(context, treeUri);
     }
 
     public File getDefaultNotebookFile() {

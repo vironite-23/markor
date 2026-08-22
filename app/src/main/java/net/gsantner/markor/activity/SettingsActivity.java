@@ -284,20 +284,33 @@ public class SettingsActivity extends MarkorBaseActivity {
                 }
 
                 case R.string.pref_key__notebook_directory: {
-                    MarkorFileBrowserFactory.showFolderDialog(new GsFileBrowserOptions.SelectionListenerAdapter() {
-                        @Override
-                        public void onFsViewerSelected(String request, File file, final Integer lineNumber) {
-                            _appSettings.setNotebookDirectory(file);
-                            _appSettings.setRecreateMainRequired(true);
+                    // Uses Android's own Storage Access Framework directory picker (instead of
+                    // Markor's internal file browser) so the user can pick any folder they have
+                    // access to, with a persistable permission grant that survives an app/device
+                    // restart - see AppSettings#setNotebookDirectory(File, Uri) and
+                    // #isNotebookDirectoryAccessible(Context).
+                    //
+                    // The picker is a real cross-Activity round trip (the user leaves the app),
+                    // so this fragment can be detached by the time the result comes back (e.g.
+                    // backed out of Settings, or a config change recreated it). Capture the
+                    // Activity once up front rather than calling getActivity() again from inside
+                    // the async callback, and re-check isAdded() before touching fragment/UI state.
+                    final Activity capturedActivity = getActivity();
+                    if (capturedActivity == null) {
+                        return true;
+                    }
+                    _cu.requestDirectory(capturedActivity, treeUri -> {
+                        final File file = _cu.resolveTreeUriToFile(capturedActivity, treeUri);
+                        if (file == null) {
+                            Toast.makeText(capturedActivity, R.string.could_not_access_selected_folder, Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        _appSettings.setNotebookDirectory(file, treeUri);
+                        _appSettings.setRecreateMainRequired(true);
+                        if (isAdded()) {
                             doUpdatePreferences();
                         }
-
-                        @Override
-                        public void onFsViewerConfig(GsFileBrowserOptions.Options dopt) {
-                            dopt.titleText = R.string.select_storage_folder;
-                            dopt.rootFolder = _appSettings.getNotebookDirectory();
-                        }
-                    }, fragManager, getActivity());
+                    });
                     return true;
                 }
                 case R.string.pref_key__quicknote_filepath: {

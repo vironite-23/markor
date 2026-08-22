@@ -89,6 +89,21 @@
         </PreferenceCategory>
 
 
+        <PreferenceCategory android:title="@string/book_settings">
+            <CheckBoxPreference
+                android:defaultValue="true"
+                android:key="@string/pref_key__book_tab_enabled"
+                android:title="@string/book_tab_enabled"
+                android:summary="@string/book_tab_enabled_summary" />
+            <ListPreference
+                android:defaultValue="GRID"
+                android:entries="@array/pref_arrdisp__book_view_mode"
+                android:entryValues="@array/pref_arrkeys__book_view_mode"
+                android:key="@string/pref_key__book_view_mode"
+                android:title="@string/book_view_mode"
+                android:summary="@string/book_view_mode_summary" />
+        </PreferenceCategory>
+
         <PreferenceCategory android:title="@string/features">
             <CheckBoxPreference
                 android:defaultValue="false"

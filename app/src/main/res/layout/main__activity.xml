@@ -45,6 +45,54 @@
         android:layout_marginTop="?attr/actionBarSize"
         android:layout_marginBottom="?attr/actionBarSize" />
 
+    <!--
+    Shown instead of the Notebook tab's content when the configured Notebook root folder no
+    longer exists or its access permission was revoked - see
+    MainActivity#updateNotebookFolderAvailability(). Covers the same area as the ViewPager so it
+    fully replaces the (otherwise just empty-looking) file list with a clear explanation + a way
+    to pick a new folder, rather than the Notebook tab silently doing nothing or falling back to
+    browsing anywhere else on the device.
+    -->
+    <LinearLayout
+        android:id="@+id/main__notebook_folder_unavailable"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="?attr/actionBarSize"
+        android:layout_marginBottom="?attr/actionBarSize"
+        android:background="@color/background"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="32dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/main__notebook_folder_unavailable_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:gravity="center"
+            android:text="@string/notebook_folder_unavailable_title"
+            android:textColor="@color/primary_text"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/main__notebook_folder_unavailable_description"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:gravity="center"
+            android:text="@string/notebook_folder_unavailable_description"
+            android:textColor="@color/secondary_text" />
+
+        <Button
+            android:id="@+id/main__notebook_folder_unavailable_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/select_notebook_folder" />
+
+    </LinearLayout>
+
     <!--suppress AndroidUnknownAttribute -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_add_new_item"

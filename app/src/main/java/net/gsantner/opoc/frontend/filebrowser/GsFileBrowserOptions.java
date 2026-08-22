@@ -82,6 +82,24 @@ public class GsFileBrowserOptions {
 
         public boolean descModtimeInsteadOfParent = false;
 
+        // When true, navigation is confined to rootFolder and its subfolders: the "go up" row
+        // never appears at rootFolder, any attempt to navigate above it is redirected back to it,
+        // and browser chrome for jumping to arbitrary filesystem locations (the "Go to /storage"
+        // menu action, virtual storage-root shortcuts) is hidden. Used by the Notebook tab so it
+        // behaves as a dedicated workspace rooted at one folder rather than a general file
+        // manager. Defaults to false so every other caller of this shared browser (move/copy
+        // dialogs, attach-file pickers, the notebook-root folder picker itself, etc.) keeps
+        // today's unrestricted browsing behavior unless it explicitly opts in.
+        public boolean confineToRootFolder = false;
+
+        // Dedicated Book/Files presentation modes. These are opt-in so the shared browser
+        // remains backwards compatible for dialogs and other callers.
+        public boolean bookMode = false;
+        public boolean requestBookOptions = false;
+        public boolean onlyShowDirectories = false;
+        public boolean hideIconsInList = false;
+        public boolean useCustomFileFolderImages = false;
+
         public int itemSidePadding = 16; // dp
 
         // Main notebook list can omit the generic folder/choose-directory icon. Grid mode keeps

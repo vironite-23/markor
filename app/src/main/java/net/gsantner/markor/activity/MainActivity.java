@@ -63,8 +63,9 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
 
     private BottomNavigationView _bottomNav;
     private ViewPager2 _viewPager;
+    private View _notebookFolderUnavailableView;
     private SectionsPagerAdapter _sectionsAdapter;
-    private GsFileBrowserFragment _notebook;
+    private GsFileBrowserFragment _notebook, _book;
     private DocumentEditAndViewFragment _quicknote, _todo;
     private MoreFragment _more;
     private FloatingActionButton _fab;
@@ -80,15 +81,29 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
         IS_DEBUG_ENABLED |= BuildConfig.IS_TEST_BUILD;
 
         try {
-            //noinspection ResultOfMethodCallIgnored
-            _appSettings.getNotebookDirectory().mkdirs();
+            // Only auto-create the (still-default, never explicitly picked) notebook folder on
+            // first run. Once the user has picked a folder via the directory picker, silently
+            // recreating it here if it's missing would mask exactly the "folder no longer
+            // exists" situation the unavailable-state UI (see updateNotebookFolderAvailability)
+            // is meant to catch and ask the user about.
+            if (_appSettings.getNotebookDirectoryTreeUri() == null) {
+                //noinspection ResultOfMethodCallIgnored
+                _appSettings.getNotebookDirectory().mkdirs();
+            }
         } catch (Exception ignored) {
         }
 
         _cu = new MarkorContextUtils(this);
         setContentView(R.layout.main__activity);
         _bottomNav = findViewById(R.id.bottom_navigation_bar);
+        if (!_appSettings.isBookTabEnabled()) {
+            MenuItem bookItem = _bottomNav.getMenu().findItem(R.id.nav_book);
+            if (bookItem != null) bookItem.setVisible(false);
+        }
         _viewPager = findViewById(R.id.main__view_pager_container);
+        _notebookFolderUnavailableView = findViewById(R.id.main__notebook_folder_unavailable);
+        _notebookFolderUnavailableView.findViewById(R.id.main__notebook_folder_unavailable_button)
+                .setOnClickListener(v -> pickNewNotebookFolder());
         _fab = findViewById(R.id.fab_add_new_item);
         _fab.setOnClickListener(this::onClickFab);
         _fab.setOnLongClickListener(this::onLongClickFab);
@@ -108,6 +123,10 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
         _viewPager.setAdapter(_sectionsAdapter);
         // Keep created fragments alive, but only realize them once the user visits.
         _viewPager.setOffscreenPageLimit(_bottomNav.getMenu().size());
+        // ViewPager2 fires onPageSelected once layout settles, but that can happen a frame or two
+        // late; check explicitly now too so the very first frame is already correct if the app
+        // launches straight onto the Notebook tab with an unavailable folder.
+        updateNotebookFolderAvailability(getCurrentPos());
         _bottomNav.setOnItemSelectedListener((item) -> {
             final int itemId = item.getItemId();
             if (itemId == R.id.nav_quicknote) {
@@ -148,8 +167,8 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
         super.onActivityFirstTimeVisible();
         // Switch to tab if specific folder _not_ requested, and not recreating from saved instance
         final int startTab = _appSettings.getAppStartupTab();
-        if (startTab != R.id.nav_notebook && MarkorContextUtils.getValidIntentFile(getIntent(), null) == null) {
-            _viewPager.postDelayed(() -> _viewPager.setCurrentItem(tabIdToPos(startTab)), 100);
+        if (MarkorContextUtils.getValidIntentFile(getIntent(), null) == null) {
+            _viewPager.postDelayed(() -> { int p = tabIdToPos(startTab); _sectionsAdapter.ensureRealized(p); _viewPager.setCurrentItem(p); }, 100);
         }
     }
 
@@ -166,6 +185,7 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
         try {
             final FragmentManager manager = getSupportFragmentManager();
             // Put and get notebook first. Most important for correct operation.
+            manager.putFragment(outState, Integer.toString(R.id.nav_book), _book);
             manager.putFragment(outState, Integer.toString(R.id.nav_notebook), _notebook);
             manager.putFragment(outState, Integer.toString(R.id.nav_quicknote), _quicknote);
             manager.putFragment(outState, Integer.toString(R.id.nav_todo), _todo);
@@ -186,12 +206,14 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
         // Get back references to fragments
         try {
             final FragmentManager manager = getSupportFragmentManager();
+            _book = (GsFileBrowserFragment) manager.getFragment(savedInstanceState, Integer.toString(R.id.nav_book));
             _notebook = (GsFileBrowserFragment) manager.getFragment(savedInstanceState, Integer.toString(R.id.nav_notebook));
             _quicknote = (DocumentEditAndViewFragment) manager.getFragment(savedInstanceState, Integer.toString(R.id.nav_quicknote));
             _todo = (DocumentEditAndViewFragment) manager.getFragment(savedInstanceState, Integer.toString(R.id.nav_todo));
             _more = (MoreFragment) manager.getFragment(savedInstanceState, Integer.toString(R.id.nav_more));
 
             if (_sectionsAdapter != null) {
+                _sectionsAdapter.restoreFragment(tabIdToPos(R.id.nav_book));
                 _sectionsAdapter.restoreFragment(tabIdToPos(R.id.nav_notebook));
                 _sectionsAdapter.restoreFragment(tabIdToPos(R.id.nav_quicknote));
                 _sectionsAdapter.restoreFragment(tabIdToPos(R.id.nav_todo));
@@ -413,11 +435,12 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
     }
 
     public int tabIdToPos(final int id) {
-        if (id == R.id.nav_notebook) return 0;
-        if (id == R.id.nav_todo) return 1;
-        if (id == R.id.nav_quicknote) return 2;
-        if (id == R.id.nav_more) return 3;
-        return 0;
+        if (id == R.id.nav_book) return 0;
+        if (id == R.id.nav_notebook) return 1;
+        if (id == R.id.nav_todo) return 2;
+        if (id == R.id.nav_quicknote) return 3;
+        if (id == R.id.nav_more) return 4;
+        return 1;
     }
 
     public int tabIdFromPos(final int pos) {
@@ -429,18 +452,20 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
     }
 
     public String getPosTitle(final int pos) {
-        if (pos == 0) return getFileBrowserTitle();
-        if (pos == 1) return getString(R.string.todo);
-        if (pos == 2) return getString(R.string.quicknote);
-        if (pos == 3) return getString(R.string.more);
+        if (pos == 0) return getString(R.string.book);
+        if (pos == 1) return getFileBrowserTitle();
+        if (pos == 2) return getString(R.string.todo);
+        if (pos == 3) return getString(R.string.quicknote);
+        if (pos == 4) return getString(R.string.more);
         return "";
     }
 
     public GsFragmentBase<?, ?> getPosFragment(final int pos) {
-        if (pos == 0) return _notebook;
-        if (pos == 1) return _todo;
-        if (pos == 2) return _quicknote;
-        if (pos == 3) return _more;
+        if (pos == 0) return _book;
+        if (pos == 1) return _notebook;
+        if (pos == 2) return _todo;
+        if (pos == 3) return _quicknote;
+        if (pos == 4) return _more;
         return null;
     }
 
@@ -450,9 +475,8 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
      */
     private void restoreDefaultToolbar() {
         GsFileBrowserFragment wrFragment = getNotebook();
-        if (wrFragment != null) {
-            wrFragment.clearSelection();
-        }
+        if (wrFragment != null) wrFragment.clearSelection();
+        if (_book != null) _book.clearSelection();
     }
 
     public void hideKeyboard() {
@@ -477,49 +501,98 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
             _fab.hide();
         }
 
+        updateNotebookFolderAvailability(pos);
         setTitle(getPosTitle(pos));
+    }
+
+    /**
+     * Shows a "pick a new folder" state over the Notebook tab - instead of the Notebook fragment
+     * itself (which would otherwise just silently show an empty list / a scan error, or in the
+     * worst case throw trying to read a folder it no longer has access to) - when the configured
+     * Notebook root folder no longer exists or its permission grant was revoked. Any other tab
+     * always shows its normal content regardless of the Notebook folder's state, since this
+     * overlay sits on top of the whole ViewPager area.
+     */
+    private void updateNotebookFolderAvailability(final int currentPos) {
+        if (_notebookFolderUnavailableView == null || _viewPager == null) {
+            return;
+        }
+        final boolean showUnavailable = currentPos == tabIdToPos(R.id.nav_notebook)
+                && !_appSettings.isNotebookDirectoryAccessible(this);
+        _notebookFolderUnavailableView.setVisibility(showUnavailable ? View.VISIBLE : View.GONE);
+        if (showUnavailable) {
+            _fab.hide();
+        } else if (currentPos == tabIdToPos(R.id.nav_notebook)) {
+            _fab.show();
+        }
+    }
+
+    /**
+     * Opens the same Storage Access Framework directory picker used in Settings, for the "Select
+     * Notebook folder" button shown when the configured folder is unavailable. On success this
+     * restarts the activity (the same recreate-on-resume mechanism every other Notebook-folder
+     * change already goes through - see AppSettings#setRecreateMainRequired) rather than trying
+     * to hot-swap the root folder on an already-live fragment/adapter.
+     */
+    private void pickNewNotebookFolder() {
+        _cu.requestDirectory(this, treeUri -> {
+            final File file = _cu.resolveTreeUriToFile(this, treeUri);
+            if (file == null) {
+                Toast.makeText(this, R.string.could_not_access_selected_folder, Toast.LENGTH_LONG).show();
+                return;
+            }
+            _appSettings.setNotebookDirectory(file, treeUri);
+            _appSettings.setRecreateMainRequired(true);
+        });
     }
 
     private GsFileBrowserOptions.Options _filesystemDialogOptions = null;
 
     @Override
     public GsFileBrowserOptions.Options getFilesystemFragmentOptions(GsFileBrowserOptions.Options existingOptions) {
-        if (_filesystemDialogOptions == null) {
-            _filesystemDialogOptions = MarkorFileBrowserFactory.prepareFsViewerOpts(this, false, new GsFileBrowserOptions.SelectionListenerAdapter() {
-
-                @Override
-                public void onFsViewerConfig(GsFileBrowserOptions.Options dopt) {
-                    dopt.descModtimeInsteadOfParent = true;
-                    dopt.rootFolder = _appSettings.getNotebookDirectory();
-                    dopt.startFolder = _startFolder;
-                    dopt.doSelectMultiple = dopt.doSelectFolder = dopt.doSelectFile = true;
-                    dopt.hideGenericFolderIconInList = true;
-                    dopt.mountedStorageFolder = _cu.getStorageAccessFolder(MainActivity.this);
+        final boolean book = existingOptions != null && existingOptions.requestBookOptions;
+        final GsFileBrowserOptions.Options opts = MarkorFileBrowserFactory.prepareFsViewerOpts(this, false, new GsFileBrowserOptions.SelectionListenerAdapter() {
+            @Override
+            public void onFsViewerConfig(GsFileBrowserOptions.Options dopt) {
+                dopt.descModtimeInsteadOfParent = true;
+                dopt.rootFolder = _appSettings.getNotebookDirectory();
+                dopt.confineToRootFolder = true;
+                dopt.startFolder = dopt.rootFolder;
+                dopt.doSelectMultiple = dopt.doSelectFolder = dopt.doSelectFile = true;
+                dopt.hideGenericFolderIconInList = true;
+                dopt.mountedStorageFolder = _cu.getStorageAccessFolder(MainActivity.this);
+                if (book) {
+                    dopt.bookMode = true;
+                    dopt.onlyShowDirectories = true;
+                    dopt.hideIconsInList = true;
+                    dopt.viewMode = _appSettings.getBookViewMode();
+                } else {
+                    dopt.viewMode = GsFileBrowserOptions.FileBrowserViewMode.DETAILED_LIST;
+                    dopt.useCustomFileFolderImages = true;
+                    dopt.folderImage = R.drawable.file_tab_folder;
+                    dopt.fileImage = R.drawable.file_tab_file;
                 }
+            }
 
-                @Override
-                public void onFsViewerDoUiUpdate(final GsFileBrowserListAdapter adapter) {
-                    if (adapter != null && adapter.getCurrentFolder() != null && !TextUtils.isEmpty(adapter.getCurrentFolder().getName())) {
-                        _appSettings.setFileBrowserLastBrowsedFolder(adapter.getCurrentFolder());
-                        if (getCurrentPos() == tabIdToPos(R.id.nav_notebook)) {
-                            setTitle(getFileBrowserTitle());
-                        }
-                    }
-
-                    if (_showFile != null && adapter != null) {
-                        adapter.showFile(_showFile);
-                        _showFile = null;
-                    }
+            @Override
+            public void onFsViewerDoUiUpdate(final GsFileBrowserListAdapter adapter) {
+                if (adapter != null && adapter.getCurrentFolder() != null && !TextUtils.isEmpty(adapter.getCurrentFolder().getName())) {
+                    _appSettings.setFileBrowserLastBrowsedFolder(adapter.getCurrentFolder());
+                    if (getCurrentPos() == tabIdToPos(R.id.nav_notebook)) setTitle(getFileBrowserTitle());
                 }
-
-                @Override
-                public void onFsViewerSelected(String request, File file, final Integer lineNumber) {
-                    showLargeFileOpenToastIfNeeded(file);
-                    DocumentActivity.launch(MainActivity.this, file, null, lineNumber);
+                if (_showFile != null && adapter != null && !book) {
+                    adapter.showFile(_showFile);
+                    _showFile = null;
                 }
-            });
-        }
-        return _filesystemDialogOptions;
+            }
+
+            @Override
+            public void onFsViewerSelected(String request, File file, final Integer lineNumber) {
+                showLargeFileOpenToastIfNeeded(file);
+                DocumentActivity.launch(MainActivity.this, file, null, lineNumber);
+            }
+        });
+        return opts;
     }
 
     class SectionsPagerAdapter extends FragmentStateAdapter {
@@ -529,18 +602,20 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
             super(fragMgr, MainActivity.this.getLifecycle());
             final int count = _bottomNav.getMenu().size();
             _realized = new boolean[count];
-            _realized[_viewPager.getCurrentItem()] = true; // only the visible page is real at start
+            _realized[_viewPager.getCurrentItem()] = true;
         }
 
         @NonNull
         @Override
         public Fragment createFragment(final int pos) {
             if (!_realized[pos]) {
-                return new Fragment(); // placeholder, replaced when realized
+                return new Fragment();
             }
             final GsFragmentBase<?, ?> frag;
             final int id = tabIdFromPos(pos);
-            if (id == R.id.nav_quicknote) {
+            if (id == R.id.nav_book) {
+                frag = _book = GsFileBrowserFragment.newBookInstance();
+            } else if (id == R.id.nav_quicknote) {
                 frag = _quicknote = DocumentEditAndViewFragment.newInstance(new Document(_appSettings.getQuickNoteFile()), -1, false);
             } else if (id == R.id.nav_todo) {
                 frag = _todo = DocumentEditAndViewFragment.newInstance(new Document(_appSettings.getTodoFile()), -1, false);
@@ -554,44 +629,31 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
         }
 
         @Override
-        public int getItemCount() {
-            return _bottomNav.getMenu().size();
-        }
+        public int getItemCount() { return _bottomNav.getMenu().size(); }
 
         @Override
-        public long getItemId(final int position) {
-            return position * 2L + (_realized[position] ? 1 : 0);
-        }
+        public long getItemId(final int position) { return position * 2L + (_realized[position] ? 1 : 0); }
 
         @Override
         public boolean containsItem(final long itemId) {
             final int pos = (int) (itemId / 2L);
-            if (pos < 0 || pos >= _realized.length) {
-                return false;
-            }
-            final boolean realId = (itemId % 2L) == 1L;
-            return _realized[pos] == realId;
+            if (pos < 0 || pos >= _realized.length) return false;
+            return _realized[pos] == ((itemId % 2L) == 1L);
         }
 
         void ensureRealized(final int pos) {
-            if (pos < 0 || pos >= _realized.length || _realized[pos]) {
-                return;
-            }
+            if (pos < 0 || pos >= _realized.length || _realized[pos]) return;
             _realized[pos] = true;
             notifyItemChanged(pos);
         }
 
         void restoreFragment(final int pos) {
-            if (pos < 0 || pos >= _realized.length) {
-                return;
-            }
+            if (pos < 0 || pos >= _realized.length) return;
             _realized[pos] = true;
         }
     }
 
-    public GsFileBrowserFragment getNotebook() {
-        return _notebook;
-    }
+    public GsFileBrowserFragment getNotebook() { return _notebook; }
 
     @Override
     protected void onPause() {

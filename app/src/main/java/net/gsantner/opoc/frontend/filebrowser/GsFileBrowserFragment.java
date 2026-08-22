@@ -27,8 +27,11 @@ import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.PopupMenu;
+import android.widget.HorizontalScrollView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -81,6 +84,14 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
         return new GsFileBrowserFragment();
     }
 
+    public static GsFileBrowserFragment newBookInstance() {
+        final GsFileBrowserFragment fragment = new GsFileBrowserFragment();
+        final Bundle args = new Bundle();
+        args.putBoolean("book_mode", true);
+        fragment.setArguments(args);
+        return fragment;
+    }
+
     //########################
     //## Member
     //########################
@@ -96,6 +107,8 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
     private Menu _fragmentMenu;
     private MarkorContextUtils _cu;
     private Toolbar _toolbar;
+    private boolean _bookMode;
+    private LinearLayout _bookPathTabs;
     private boolean _reloadRequiredOnResume = true;
     private RecyclerView.ItemDecoration _fileListDivider;
 
@@ -114,26 +127,69 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
         _recyclerList = root.findViewById(R.id.ui__filesystem_dialog__list);
         _swipe = root.findViewById(R.id.pull_to_refresh);
         _emptyHint = root.findViewById(R.id.empty_hint);
+        _bookPathTabs = root.findViewById(R.id.book_path_tabs);
         _cu = new MarkorContextUtils(activity);
         _appSettings = AppSettings.get(activity);
 
         if (!(getActivity() instanceof FilesystemFragmentOptionsListener)) {
             throw new RuntimeException("Error: " + activity.getClass().getName() + " doesn't implement FilesystemFragmentOptionsListener");
         }
-        setDialogOptions(((FilesystemFragmentOptionsListener) activity).getFilesystemFragmentOptions(_dopt));
+        _bookMode = getArguments() != null && getArguments().getBoolean("book_mode", false);
+        // Passing a marker Options instance lets MainActivity create an independent option set
+        // for Book instead of sharing the Notebook option object.
+        GsFileBrowserOptions requestedOptions = _bookMode ? new GsFileBrowserOptions.Options() : _dopt;
+        if (_bookMode) requestedOptions.requestBookOptions = true;
+        setDialogOptions(((FilesystemFragmentOptionsListener) activity).getFilesystemFragmentOptions(requestedOptions));
+        if (_bookMode) {
+            _dopt.bookMode = true;
+            _dopt.onlyShowDirectories = true;
+            _dopt.hideIconsInList = true;
+            _dopt.confineToRootFolder = true;
+            _dopt.rootFolder = _appSettings.getNotebookDirectory();
+            _dopt.startFolder = _dopt.rootFolder;
+            _dopt.viewMode = _appSettings.getBookViewMode();
+            _dopt.viewModeIsFolderLocal = false;
+            if (_bookPathTabs != null) {
+                _bookPathTabs.setVisibility(View.VISIBLE);
+                ((android.view.ViewGroup.MarginLayoutParams) _swipe.getLayoutParams()).topMargin =
+                        (int) (48 * getResources().getDisplayMetrics().density);
+                _swipe.requestLayout();
+            }
+        }
 
         addDivider(activity, _recyclerList);
         if (_recyclerList.getItemDecorationCount() > 0) {
             _fileListDivider = _recyclerList.getItemDecorationAt(_recyclerList.getItemDecorationCount() - 1);
         }
 
-        _dopt.viewMode = _appSettings.getFileBrowserViewMode(null); // global default; per-folder override applied in onFsViewerFolderLoad
+        if (!_dopt.bookMode && !_dopt.useCustomFileFolderImages) {
+            _dopt.viewMode = _appSettings.getFileBrowserViewMode(null); // global default
+        } else if (_dopt.bookMode) {
+            _dopt.viewMode = _appSettings.getBookViewMode();
+        } else {
+            _dopt.viewMode = GsFileBrowserOptions.FileBrowserViewMode.DETAILED_LIST;
+        }
         _dopt.gridColumns = _appSettings.getFileBrowserGridColumns();
         _dopt.hideNonTextFiles = _appSettings.isFileBrowserHideNonTextFiles();
         applyViewMode();
 
         _filesystemViewerAdapter = new GsFileBrowserListAdapter(_dopt, activity);
         _recyclerList.setAdapter(_filesystemViewerAdapter);
+        if (_bookMode) {
+            final float[] downX = new float[1];
+            _recyclerList.setOnTouchListener((v, event) -> {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    downX[0] = event.getX();
+                } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    float dx = event.getX() - downX[0];
+                    if (Math.abs(dx) > 120) {
+                        _filesystemViewerAdapter.switchSiblingFolder(dx < 0 ? 1 : -1);
+                        return true;
+                    }
+                }
+                return false;
+            });
+        }
         setReloadRequiredOnResume(false); // setAdapter will trigger a load
 
         _swipe.setOnRefreshListener(() -> {
@@ -186,9 +242,22 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
         }
 
         _dopt.sortOrder = _appSettings.getFolderSortOrder(newFolder);
-        _dopt.viewMode = _appSettings.getFileBrowserViewMode(newFolder);
-        _dopt.viewModeIsFolderLocal = _appSettings.isFileBrowserViewModeFolderLocal(newFolder);
-        applyViewMode();
+        if (_dopt.bookMode) {
+            _dopt.viewMode = _appSettings.getBookViewMode();
+            _dopt.viewModeIsFolderLocal = false;
+        } else if (_dopt.useCustomFileFolderImages) {
+            _dopt.viewMode = GsFileBrowserOptions.FileBrowserViewMode.DETAILED_LIST;
+            _dopt.viewModeIsFolderLocal = false;
+        } else {
+            _dopt.viewMode = _appSettings.getFileBrowserViewMode(newFolder);
+            _dopt.viewModeIsFolderLocal = _appSettings.isFileBrowserViewModeFolderLocal(newFolder);
+        }
+        if (_dopt.bookMode) {
+            _dopt.viewMode = _appSettings.getBookViewMode();
+        } else {
+            applyViewMode();
+        }
+        if (_dopt.bookMode) updateBookPathTabs(newFolder);
         _dopt.favouriteFiles = _appSettings.getFavouriteFiles();
         _dopt.recentFiles = _appSettings.getRecentFiles();
         _dopt.popularFiles = _appSettings.getPopularFiles();
@@ -242,7 +311,35 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
         }
     }
 
-    private void updateMenuItems() {
+    private void updateBookPathTabs(final File current) {
+        if (!_bookMode || _bookPathTabs == null || current == null) return;
+        final LinearLayout container = _bookPathTabs.findViewById(R.id.book_path_tabs_container);
+        container.removeAllViews();
+
+        final ArrayList<File> chain = new ArrayList<>();
+        File f = current;
+        while (f != null && f.isDirectory() && (f.equals(_dopt.rootFolder) || GsFileUtils.isChild(_dopt.rootFolder, f))) {
+            chain.add(0, f);
+            if (f.equals(_dopt.rootFolder)) break;
+            f = f.getParentFile();
+        }
+        for (final File folder : chain) {
+            TextView tab = new TextView(requireContext());
+            tab.setText(folder.equals(_dopt.rootFolder) ? getString(R.string.book) : folder.getName());
+            tab.setTextColor(ContextCompat.getColor(requireContext(), R.color.primary_text));
+            tab.setTextSize(14);
+            tab.setGravity(android.view.Gravity.CENTER);
+            tab.setPadding(18, 0, 18, 0);
+            tab.setClickable(true);
+            tab.setBackgroundResource(android.R.drawable.list_selector_background);
+            tab.setOnClickListener(v -> _filesystemViewerAdapter.setCurrentFolder(folder));
+            container.addView(tab, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT));
+        }
+        _bookPathTabs.post(() -> _bookPathTabs.fullScroll(HorizontalScrollView.FOCUS_RIGHT));
+    }
+
+private void updateMenuItems() {
         final Set<File> selFiles = _filesystemViewerAdapter.getCurrentSelection();
         final int selCount = selFiles.size();
         final int totalCount = _filesystemViewerAdapter.getItemCount() - 1;   // Account for ".."
@@ -274,9 +371,9 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
             _fragmentMenu.findItem(R.id.action_move_selected_items).setVisible((selMulti1 || selMultiMore) && selWritable && !selInVirtualDirectory && !_cu.isUnderStorageAccessFolder(getContext(), getCurrentFolder(), true));
             _fragmentMenu.findItem(R.id.action_copy_selected_items).setVisible((selMulti1 || selMultiMore) && selWritable && !_cu.isUnderStorageAccessFolder(getContext(), getCurrentFolder(), true));
             _fragmentMenu.findItem(R.id.action_share_files).setVisible(selFilesOnly && (selMulti1 || selMultiMore) && !_cu.isUnderStorageAccessFolder(getContext(), getCurrentFolder(), true));
-            _fragmentMenu.findItem(R.id.action_go_to).setVisible(!_filesystemViewerAdapter.areItemsSelected());
+            _fragmentMenu.findItem(R.id.action_go_to).setVisible(!_filesystemViewerAdapter.areItemsSelected() && !_dopt.confineToRootFolder);
             _fragmentMenu.findItem(R.id.action_sort).setVisible(_filesystemViewerAdapter.isCurrentFolderSortable() && !_filesystemViewerAdapter.areItemsSelected());
-            _fragmentMenu.findItem(R.id.action_view_mode).setVisible(!_filesystemViewerAdapter.areItemsSelected());
+            _fragmentMenu.findItem(R.id.action_view_mode).setVisible(!_filesystemViewerAdapter.areItemsSelected() && !_dopt.useCustomFileFolderImages && (!_dopt.bookMode || _filesystemViewerAdapter.isCurrentFolderHome()));
             _fragmentMenu.findItem(R.id.action_import).setVisible(!_filesystemViewerAdapter.areItemsSelected() && !_filesystemViewerAdapter.isCurrentFolderVirtual());
             _fragmentMenu.findItem(R.id.action_settings).setVisible(!_filesystemViewerAdapter.areItemsSelected());
             _fragmentMenu.findItem(R.id.action_favourite).setVisible(selMultiAny && !allSelectedFav);
@@ -419,6 +516,9 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
                 return true;
             }
             case R.id.action_go_to: {
+                if (_dopt.confineToRootFolder) {
+                    return true; // confined browsers (e.g. Notebook) never expose arbitrary jumps
+                }
                 final File folder = new File("/storage");
                 _filesystemViewerAdapter.setCurrentFolder(folder);
                 return true;
@@ -718,49 +818,35 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
      */
     private void showViewModeDropdown() {
         final Activity activity = getActivity();
-        if (activity == null || _toolbar == null) {
-            return;
-        }
+        if (activity == null || _toolbar == null) return;
         final View anchor = _toolbar.findViewById(R.id.action_view_mode);
         final PopupMenu popup = new PopupMenu(activity, anchor != null ? anchor : _toolbar);
         final Menu menu = popup.getMenu();
 
-        final MenuItem miFolderLocal = menu.add(0, 0, 0, R.string.folder_local);
-        miFolderLocal.setCheckable(true);
-        miFolderLocal.setChecked(_dopt.viewModeIsFolderLocal);
-
-        final MenuItem miList = menu.add(1, 1, 1, R.string.list);
-        final MenuItem miDetailed = menu.add(1, 2, 2, R.string.detailed_list);
-        final MenuItem miGrid = menu.add(1, 3, 3, R.string.grid);
-        miList.setCheckable(true);
-        miDetailed.setCheckable(true);
-        miGrid.setCheckable(true);
-        miList.setChecked(_dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.LIST);
-        miDetailed.setChecked(_dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.DETAILED_LIST);
-        miGrid.setChecked(_dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.GRID);
-
-        if (_dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.GRID) {
-            for (int columns = 2; columns <= 6; columns++) {
-                final MenuItem colItem = menu.add(2, 100 + columns, 3 + columns, getString(R.string.grid_columns) + ": " + columns);
-                colItem.setCheckable(true);
-                colItem.setChecked(_dopt.gridColumns == columns);
-            }
+        if (_dopt.bookMode) {
+            final MenuItem detailed = menu.add(0, 2, 0, R.string.detailed_list);
+            final MenuItem grid = menu.add(0, 3, 1, R.string.grid);
+            detailed.setCheckable(true); grid.setCheckable(true);
+            detailed.setChecked(_dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.DETAILED_LIST);
+            grid.setChecked(_dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.GRID);
+        } else {
+            final MenuItem miFolderLocal = menu.add(0, 0, 0, R.string.folder_local);
+            miFolderLocal.setCheckable(true);
+            miFolderLocal.setChecked(_dopt.viewModeIsFolderLocal);
+            final MenuItem miList = menu.add(1, 1, 1, R.string.list);
+            final MenuItem miDetailed = menu.add(1, 2, 2, R.string.detailed_list);
+            final MenuItem miGrid = menu.add(1, 3, 3, R.string.grid);
+            miList.setCheckable(true); miDetailed.setCheckable(true); miGrid.setCheckable(true);
+            miList.setChecked(_dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.LIST);
+            miDetailed.setChecked(_dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.DETAILED_LIST);
+            miGrid.setChecked(_dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.GRID);
         }
 
         popup.setOnMenuItemClickListener(item -> {
-            final int id = item.getItemId();
-            if (id == 0) {
-                toggleViewModeFolderLocal();
-                showViewModeDropdown(); // Re-open so the updated toggle state is visible
-            } else if (id == 1) {
-                setViewMode(GsFileBrowserOptions.FileBrowserViewMode.LIST);
-            } else if (id == 2) {
-                setViewMode(GsFileBrowserOptions.FileBrowserViewMode.DETAILED_LIST);
-            } else if (id == 3) {
-                setViewMode(GsFileBrowserOptions.FileBrowserViewMode.GRID);
-            } else if (id >= 100) {
-                setGridColumns(id - 100);
-            }
+            if (item.getItemId() == 2) setViewMode(GsFileBrowserOptions.FileBrowserViewMode.DETAILED_LIST);
+            else if (item.getItemId() == 3) setViewMode(GsFileBrowserOptions.FileBrowserViewMode.GRID);
+            else if (item.getItemId() == 1) setViewMode(GsFileBrowserOptions.FileBrowserViewMode.LIST);
+            else if (item.getItemId() == 0) { toggleViewModeFolderLocal(); showViewModeDropdown(); }
             return true;
         });
         popup.show();
@@ -768,8 +854,13 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
 
     private void setViewMode(final GsFileBrowserOptions.FileBrowserViewMode mode) {
         _dopt.viewMode = mode;
-        final File folder = _dopt.viewModeIsFolderLocal ? getCurrentFolder() : null;
-        _appSettings.setFileBrowserViewMode(folder, mode);
+        if (_dopt.bookMode) {
+            _appSettings.setBookViewMode(mode);
+            _dopt.viewModeIsFolderLocal = false;
+        } else {
+            final File folder = _dopt.viewModeIsFolderLocal ? getCurrentFolder() : null;
+            _appSettings.setFileBrowserViewMode(folder, mode);
+        }
         applyViewMode();
     }
 

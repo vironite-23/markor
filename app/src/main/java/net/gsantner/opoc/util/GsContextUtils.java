@@ -191,11 +191,13 @@ public class GsContextUtils {
     public final static int REQUEST_STORAGE_PERMISSION_M = 50004;
     public final static int REQUEST_STORAGE_PERMISSION_R = 50005;
     public final static int REQUEST_RECORD_AUDIO = 50006;
+    public final static int REQUEST_PICK_DIRECTORY = 50007;
 
     public static int TEXT_FILE_OVERWRITE_MIN_TEXT_LENGTH = 2;
     protected static Pair<File, List<Pair<String, String>>> m_cacheLastExtractFileMetadata;
     protected static String _lastCameraPictureFilepath = null;
     protected static WeakReference<GsCallback.a1<String>> _receivePathCallback = null;
+    protected static WeakReference<GsCallback.a1<Uri>> _receiveDirectoryCallback = null;
     protected static String m_chooserTitle = "➥";
 
 
@@ -1753,6 +1755,98 @@ public class GsContextUtils {
         }
     }
 
+    /**
+     * Opens Android's own directory picker (Storage Access Framework, {@link Intent#ACTION_OPEN_DOCUMENT_TREE})
+     * so the user can pick any folder they have access to - not just Markor's own bare-bones file
+     * browser. On success, takes a persistable read+write permission grant for the chosen tree so
+     * it survives an app/device restart, and returns the picked tree {@link Uri} via the callback.
+     * The caller is responsible for resolving that Uri to a usable {@link File} (see
+     * {@link #resolveTreeUriToFile(Context, Uri)}) and persisting whatever it needs long-term -
+     * this method only handles the picking + permission grant.
+     * <p>
+     * Result will be available from {@link Activity}.onActivityResult, same as
+     * {@link #requestGalleryPicture(Activity, GsCallback.a1)}. The callback is never invoked if
+     * the picker is cancelled.
+     */
+    public void requestDirectory(final Activity activity, final GsCallback.a1<Uri> callback) {
+        final Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+        );
+        try {
+            activity.startActivityForResult(intent, REQUEST_PICK_DIRECTORY);
+            setDirectoryCallback(callback);
+        } catch (Exception ex) {
+            Toast.makeText(activity, "No directory picker app installed!", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Resolves a persisted tree {@link Uri} (as returned by {@link #requestDirectory(Activity, GsCallback.a1)})
+     * to a real filesystem {@link File}, the same way {@link #getStorageAccessFolder(Context)}
+     * already does for the single global SD-card write-permission grant. Markor's document editor,
+     * file browser and adapters all operate on plain {@link File}s rather than {@link DocumentFile}/
+     * content Uris, so this is what lets a SAF-picked folder be used as a normal root folder
+     * everywhere else in the app.
+     * <p>
+     * Returns null if the Uri can't be mapped to a known storage volume (e.g. a cloud-only
+     * provider with no real local path) - callers should treat that as "unsupported folder" and
+     * ask the user to pick a different, locally-backed one.
+     */
+    public File resolveTreeUriToFile(final Context context, final Uri treeUri) {
+        if (treeUri == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+            return null;
+        }
+        try {
+            final String docId = android.provider.DocumentsContract.getTreeDocumentId(treeUri);
+            final int sep = docId.indexOf(':');
+            final String volume = sep >= 0 ? docId.substring(0, sep) : docId;
+            final String relPath = sep >= 0 && sep + 1 < docId.length() ? docId.substring(sep + 1) : "";
+
+            final File base;
+            if ("primary".equalsIgnoreCase(volume)) {
+                base = Environment.getExternalStorageDirectory();
+            } else {
+                File match = null;
+                for (final Pair<File, String> storage : getStorages(context, false, true)) {
+                    if (storage.second != null && storage.second.equalsIgnoreCase(volume)) {
+                        match = storage.first;
+                        break;
+                    }
+                }
+                base = match;
+            }
+
+            if (base == null) {
+                return null;
+            }
+            return TextUtils.isEmpty(relPath) ? base : new File(base, relPath);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    /**
+     * Whether a previously {@link #requestDirectory(Activity, GsCallback.a1) picked} tree Uri
+     * still has a live, persisted permission grant (i.e. wasn't revoked in system settings, and
+     * doesn't need re-picking after an app/device restart).
+     */
+    public boolean isTreeUriPermissionValid(final Context context, final Uri treeUri) {
+        if (treeUri == null) {
+            return false;
+        }
+        try {
+            for (final android.content.UriPermission perm : context.getContentResolver().getPersistedUriPermissions()) {
+                if (perm.getUri().equals(treeUri) && perm.isReadPermission()) {
+                    return true;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return false;
+    }
+
     public boolean requestAudioRecording(final Activity activity, final GsCallback.a1<String> callback) {
         final Intent intent = new Intent(MediaStore.Audio.Media.RECORD_SOUND_ACTION);
         try {
@@ -1810,6 +1904,21 @@ public class GsContextUtils {
         }
         // Send only once and once only
         _receivePathCallback = null;
+    }
+
+    private void setDirectoryCallback(final GsCallback.a1<Uri> callback) {
+        _receiveDirectoryCallback = new WeakReference<>(callback);
+    }
+
+    private void sendDirectoryCallback(final Uri treeUri) {
+        if (treeUri != null && _receiveDirectoryCallback != null) {
+            final GsCallback.a1<Uri> cb = _receiveDirectoryCallback.get();
+            if (cb != null) {
+                cb.callback(treeUri);
+            }
+        }
+        // Send only once and once only
+        _receiveDirectoryCallback = null;
     }
 
     /**
@@ -1898,6 +2007,26 @@ public class GsContextUtils {
                             resolver.takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
                         }
                     }
+                }
+                break;
+            }
+            case REQUEST_PICK_DIRECTORY: {
+                if (resultCode == Activity.RESULT_OK && intent != null && intent.getData() != null) {
+                    final Uri treeUri = intent.getData();
+                    final ContentResolver resolver = context.getContentResolver();
+                    try {
+                        resolver.takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                    } catch (SecurityException se) {
+                        try {
+                            resolver.takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        } catch (SecurityException ignored) {
+                            // Some providers don't support persistable grants at all; the folder
+                            // will simply need re-picking after the app/process restarts.
+                        }
+                    }
+                    sendDirectoryCallback(treeUri);
+                } else {
+                    _receiveDirectoryCallback = null; // picker cancelled - drop the pending callback
                 }
                 break;
             }

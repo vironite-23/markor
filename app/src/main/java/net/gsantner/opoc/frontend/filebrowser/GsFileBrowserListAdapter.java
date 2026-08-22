@@ -237,6 +237,20 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             titleText += " [" + currentFolderName + "]";
         }
 
+        // Book grid keeps its two-line folder statistics compactly in the title because the
+        // shared grid layout intentionally hides its description view.
+        if (_dopt.bookMode && !isGoUp && !isFile && _dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.GRID) {
+            File[] children = file.listFiles();
+            int folders = 0, files = 0;
+            if (children != null) {
+                for (File child : children) {
+                    if (child.isDirectory()) folders++;
+                    else if (child.isFile()) files++;
+                }
+            }
+            titleText += "\n" + _context.getString(R.string.folder_count, folders) + "  •  " +
+                    _context.getString(R.string.file_count, files);
+        }
         // Set title
         holder.title.setText(isGoUp ? ".." : titleText, TextView.BufferType.SPANNABLE);
         holder.title.setTextColor(ContextCompat.getColor(_context, _dopt.primaryTextColor));
@@ -248,27 +262,47 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             }
         }
 
-        // Set description (hidden in LIST and GRID view modes - only DETAILED_LIST shows it)
+        // Detailed list metadata. Book uses a compact, human-readable second line:
+        // folders on the Book root show direct folder/file counts; contents show modification
+        // date and time. Normal file browsing keeps the existing description behavior.
         final boolean showDescription = _dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.DETAILED_LIST;
         if (holder.description != null) {
             if (showDescription) {
-                if (!_dopt.descModtimeInsteadOfParent || isGoUp) {
+                if (_dopt.bookMode && !isGoUp) {
+                    if (file.isDirectory()) {
+                        File[] children = file.listFiles();
+                        int folders = 0, files = 0;
+                        if (children != null) {
+                            for (File child : children) {
+                                if (child.isDirectory()) folders++;
+                                else if (child.isFile()) files++;
+                            }
+                        }
+                        holder.description.setText(_context.getString(R.string.folder_count, folders) + "  •  " +
+                                _context.getString(R.string.file_count, files));
+                    } else {
+                        holder.description.setText(new SimpleDateFormat("yyyy-MM-dd  HH:mm", Locale.getDefault()).format(file.lastModified() == 0 ? new java.util.Date() : new java.util.Date(file.lastModified())));
+                    }
+                } else if (!_dopt.descModtimeInsteadOfParent || isGoUp) {
                     holder.description.setText(file.getAbsolutePath());
                 } else {
                     holder.description.setText(formatFileDescription(file, _dopt.descriptionFormat));
                 }
                 holder.description.setTextColor(ContextCompat.getColor(_context, _dopt.secondaryTextColor));
             } else {
-                holder.description.setText(""); // Avoid stale text on a recycled view leaking into content descriptions
+                holder.description.setText("");
             }
             holder.description.setVisibility(showDescription ? View.VISIBLE : View.GONE);
         }
 
         // Set icon
         final boolean isGridMode = _dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.GRID;
-        if (isSelected && !isGridMode) {
-            // List / detailed-list: swap the icon for a checkmark, same as before.
+        if (isSelected && !isGridMode && !_dopt.hideIconsInList) {
             holder.image.setImageResource(_dopt.selectedItemImage);
+        } else if (_dopt.hideIconsInList) {
+            holder.image.setImageDrawable(null);
+        } else if (_dopt.useCustomFileFolderImages && !isGridMode) {
+            holder.image.setImageResource(isFile ? R.drawable.file_tab_file : R.drawable.file_tab_folder);
         } else if (_dopt.iconMaps != null && _dopt.iconMaps.containsKey(displayFile)) {
             holder.image.setImageResource(_dopt.iconMaps.get(displayFile));
         } else if (!isFile && !isGridMode && _dopt.hideGenericFolderIconInList) {
@@ -282,11 +316,14 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         // background around it (applied below) is the selection indicator instead, so a
         // selected item's cover image doesn't get hidden behind a plain checkmark.
 
-        holder.image.setColorFilter(ContextCompat.getColor(
-                        _context,
-                        isSelected ? _dopt.accentColor : isFile ? _dopt.fileColor : _dopt.folderColor),
-                android.graphics.PorterDuff.Mode.SRC_ATOP
-        );
+        if (!_dopt.useCustomFileFolderImages) {
+            holder.image.setColorFilter(ContextCompat.getColor(
+                            _context,
+                            isSelected ? _dopt.accentColor : isFile ? _dopt.fileColor : _dopt.folderColor),
+                    android.graphics.PorterDuff.Mode.SRC_ATOP);
+        } else {
+            holder.image.clearColorFilter();
+        }
 
         if (!isSelected && !isGoUp && isFavourite) {
             holder.image.setColorFilter(FAVOURITE_COLOR);
@@ -298,6 +335,11 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         applyGridCoverImageIfAny(holder, file, isGoUp, isVirtual, isFile);
         if (isGridMode) {
             applyGridSelectionHighlight(holder, isSelected);
+        } else if (_dopt.bookMode) {
+            GradientDrawable highlight = new GradientDrawable();
+            highlight.setColor(isSelected ? ContextCompat.getColor(_context, _dopt.accentColor) & 0x33FFFFFF : android.graphics.Color.TRANSPARENT);
+            highlight.setCornerRadius(12 * _context.getResources().getDisplayMetrics().density);
+            holder.itemRoot.setBackground(highlight);
         }
 
         // Some extras
@@ -484,6 +526,21 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         }
     }
 
+    public void switchSiblingFolder(final int direction) {
+        if (!_dopt.bookMode || _currentFolder == null || _currentFolder.equals(_dopt.rootFolder)) return;
+        final File parent = _currentFolder.getParentFile();
+        if (parent == null || !parent.isDirectory()) return;
+        final ArrayList<File> folders = new ArrayList<>();
+        final File[] children = parent.listFiles();
+        if (children != null) {
+            for (File child : children) if (child.isDirectory() && accept(child)) folders.add(child);
+        }
+        GsFileUtils.sortFiles(folders, _dopt.sortOrder);
+        final int index = folders.indexOf(_currentFolder);
+        final int next = index + direction;
+        if (index >= 0 && next >= 0 && next < folders.size()) setCurrentFolder(folders.get(next));
+    }
+
     public File getCurrentFolder() {
         return _currentFolder;
     }
@@ -654,6 +711,17 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
     private @Nullable File getCurrentParent() {
         if (_currentFolder == null) {
             return null;
+        }
+
+        // Confined (e.g. Notebook tab): never offer a way up past the configured root, and never
+        // fall back to the full-storage virtual root below - that fallback is exactly the
+        // "escape to the general file manager" path confinement exists to close off.
+        if (_dopt.confineToRootFolder) {
+            if (_dopt.rootFolder == null || _dopt.rootFolder.equals(_currentFolder)) {
+                return null;
+            }
+            final File parent = _currentFolder.getParentFile();
+            return parent != null && GsFileUtils.isChild(_dopt.rootFolder, _currentFolder) ? parent : null;
         }
 
         final File parent = _currentFolder.getParentFile();
@@ -977,17 +1045,43 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                 .start();
     }
 
+    /**
+     * When {@link GsFileBrowserOptions.Options#confineToRootFolder} is set, redirects any
+     * navigation target outside rootFolder (or its subfolders) back to rootFolder itself. This is
+     * the single choke point every navigation path (the go-up row, the back stack, menu actions,
+     * external {@link #setCurrentFolder(File)} calls) funnels through in {@link #loadFolder}, so
+     * nothing can ever browse above the configured root, regardless of how navigation was
+     * triggered. A no-op (returns target unchanged) when confinement isn't enabled.
+     */
+    private File clampToConfinedRoot(final File target) {
+        final File root = _dopt.rootFolder;
+        if (!_dopt.confineToRootFolder || root == null || target == null) {
+            return target;
+        }
+        if (root.equals(target) || GsFileUtils.isChild(root, target)) {
+            return target;
+        }
+        return root;
+    }
+
     private void loadFolder(final File folder, final File show) {
         if (folder == null || _recyclerView == null) {
             return;
         }
 
+        // Navigation is confined to rootFolder + subfolders when Options#confineToRootFolder is
+        // set (e.g. the Notebook tab). Clamping the requested target here - before it's used for
+        // anything else below - means every navigation path funnels through the same boundary
+        // check. GO_BACK_SIGNIFIER is a sentinel, not a real target; the back-stack entry it
+        // resolves to is clamped separately below, once popped.
+        final File requestedFolder = GO_BACK_SIGNIFIER == folder ? folder : clampToConfinedRoot(resolveVirtualFile(folder));
+
         final File previousFolder = _currentFolder;
-        final boolean folderChanged = !folder.equals(previousFolder);
+        final boolean folderChanged = !requestedFolder.equals(previousFolder);
         // Forward navigation (opening a child) enters from the right; back navigation enters
         // from the left, matching the direction of the page transition.
         final int navigationDirection = !folderChanged ? 0 :
-                (GO_BACK_SIGNIFIER == folder || (previousFolder != null && GsFileUtils.isChild(folder, previousFolder)) ? -1 : 1);
+                (GO_BACK_SIGNIFIER == folder || (previousFolder != null && GsFileUtils.isChild(requestedFolder, previousFolder)) ? -1 : 1);
 
         if (folderChanged && previousFolder != null && _layoutManager != null) {
             _folderScrollMap.put(previousFolder, _layoutManager.onSaveInstanceState());
@@ -997,12 +1091,12 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         // the mutable _currentFolder from the worker allowed a fast open/close sequence to apply
         // stale results to the newly selected folder.
         if (GO_BACK_SIGNIFIER == folder) {
-            _currentFolder = _backStack.pop();
+            _currentFolder = clampToConfinedRoot(_backStack.pop());
         } else {
             if (folderChanged && previousFolder != null) {
                 _backStack.push(previousFolder);
             }
-            _currentFolder = resolveVirtualFile(folder);
+            _currentFolder = requestedFolder;
         }
 
         if (folderChanged) {
@@ -1169,7 +1263,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         final String name = file.getName().toLowerCase();
         final boolean filterYes = isDirectory || _dopt.fileOverallFilter == null || _dopt.fileOverallFilter.callback(_context, file);
         final boolean dotYes = _dopt.sortOrder.showDotFiles || !name.startsWith(".") && !isAccessoryFolder(parent, name, file);
-        final boolean selFileYes = _dopt.doSelectFile || isDirectory;
+        final boolean selFileYes = (_dopt.onlyShowDirectories && _currentFolder != null && _currentFolder.equals(_dopt.rootFolder)) ? isDirectory : (_dopt.doSelectFile || isDirectory);
         final boolean textYes = isDirectory || !_dopt.hideNonTextFiles || GsFileUtils.isTextFile(file);
         return filterYes && dotYes && selFileYes && textYes;
     }
@@ -1334,6 +1428,17 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
     private File getParentForFolder(final File folder) {
         if (folder == null) {
             return null;
+        }
+
+        // Confined (e.g. Notebook tab): never offer a way up past the configured root, and never
+        // fall back to the full-storage virtual root below - that fallback is exactly the
+        // "escape to the general file manager" path confinement exists to close off.
+        if (_dopt.confineToRootFolder) {
+            if (_dopt.rootFolder == null || _dopt.rootFolder.equals(folder)) {
+                return null;
+            }
+            final File parent = folder.getParentFile();
+            return parent != null && GsFileUtils.isChild(_dopt.rootFolder, folder) ? parent : null;
         }
 
         final File parent = folder.getParentFile();
