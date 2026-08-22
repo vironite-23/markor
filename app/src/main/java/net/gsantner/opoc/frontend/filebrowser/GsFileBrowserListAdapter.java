@@ -119,6 +119,35 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
     //########################
     //## Methods
     //########################
+    private int getPrimaryTextColor() {
+        final AppSettings settings = AppSettings.get(_context);
+        return settings.getUiPrimaryTextColor() != 0
+                ? settings.getUiPrimaryTextColor()
+                : ContextCompat.getColor(_context, _dopt.primaryTextColor);
+    }
+
+    private int getSecondaryTextColor() {
+        final AppSettings settings = AppSettings.get(_context);
+        return settings.getUiSecondaryTextColor() != 0
+                ? settings.getUiSecondaryTextColor()
+                : ContextCompat.getColor(_context, _dopt.secondaryTextColor);
+    }
+
+    private int getAccentColor() {
+        final AppSettings settings = AppSettings.get(_context);
+        return settings.getUiAccentColor() != 0
+                ? settings.getUiAccentColor()
+                : ContextCompat.getColor(_context, _dopt.accentColor);
+    }
+
+    private int getFileColor() {
+        return ContextCompat.getColor(_context, _dopt.fileColor);
+    }
+
+    private int getFolderColor() {
+        return ContextCompat.getColor(_context, _dopt.folderColor);
+    }
+
     public GsFileBrowserListAdapter(GsFileBrowserOptions.Options options, Context context) {
         _dopt = options;
         _adapterData = new ArrayList<>();
@@ -253,7 +282,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         }
         // Set title
         holder.title.setText(isGoUp ? ".." : titleText, TextView.BufferType.SPANNABLE);
-        holder.title.setTextColor(ContextCompat.getColor(_context, _dopt.primaryTextColor));
+        holder.title.setTextColor(getPrimaryTextColor());
 
         if (!isFileWriteable(displayFile, isGoUp) && !isVirtual && holder.title.length() > 0) {
             try {
@@ -288,7 +317,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                 } else {
                     holder.description.setText(formatFileDescription(file, _dopt.descriptionFormat));
                 }
-                holder.description.setTextColor(ContextCompat.getColor(_context, _dopt.secondaryTextColor));
+                holder.description.setTextColor(getSecondaryTextColor());
             } else {
                 holder.description.setText("");
             }
@@ -297,6 +326,9 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
 
         // Set icon
         final boolean isGridMode = _dopt.viewMode == GsFileBrowserOptions.FileBrowserViewMode.GRID;
+        // Book folder contents use a text-only detailed list for files. Hide the ImageView
+        // completely so files do not retain an empty icon column or extra row height.
+        holder.image.setVisibility(!_dopt.bookMode || isGridMode || (!isFile && !isGoUp) ? View.VISIBLE : View.GONE);
         if (isSelected && !isGridMode && !_dopt.hideIconsInList) {
             holder.image.setImageResource(_dopt.selectedItemImage);
         } else if (_dopt.hideIconsInList) {
@@ -333,11 +365,14 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         // (if the folder has one) or the default icon centered in a placeholder rectangle - plus
         // a noticeable highlight background when selected.
         applyGridCoverImageIfAny(holder, file, isGoUp, isVirtual, isFile);
+        if (!isGridMode && _dopt.bookMode) {
+            applyBookListCoverImageIfAny(holder, file, isGoUp, isVirtual, isFile);
+        }
         if (isGridMode) {
             applyGridSelectionHighlight(holder, isSelected);
         } else if (_dopt.bookMode) {
             GradientDrawable highlight = new GradientDrawable();
-            highlight.setColor(isSelected ? ContextCompat.getColor(_context, _dopt.accentColor) & 0x33FFFFFF : android.graphics.Color.TRANSPARENT);
+            highlight.setColor(isSelected ? getAccentColor() & 0x33FFFFFF : android.graphics.Color.TRANSPARENT);
             highlight.setCornerRadius(12 * _context.getResources().getDisplayMetrics().density);
             holder.itemRoot.setBackground(highlight);
         }
@@ -877,7 +912,11 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
         holder.image.setTag(coverFile.getAbsolutePath());
 
         if (!coverFile.isFile()) {
-            showDefaultGridIcon(holder, wPx);
+            if (_dopt.bookMode) {
+                showBookDefaultCover(holder, wPx, hPx);
+            } else {
+                showDefaultGridIcon(holder, wPx);
+            }
             return;
         }
 
@@ -908,6 +947,79 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
             // Pool momentarily full - the icon simply stays as the default icon
             // until this row is bound again (e.g. on the next scroll pass).
         }
+    }
+
+    private void applyBookListCoverImageIfAny(final FilesystemViewerViewHolder holder, final File folder,
+                                              final boolean isGoUp, final boolean isVirtual, final boolean isFile) {
+        final float density = _context.getResources().getDisplayMetrics().density;
+        final int widthPx = Math.max(1, Math.round(42 * density));
+        final AppSettings settings = AppSettings.get(_context);
+        final int coverWidth = Math.max(1, settings.getGridCoverImageWidthDp());
+        final int coverHeight = Math.max(1, settings.getGridCoverImageHeightDp());
+        final int heightPx = Math.max(1, Math.round(widthPx * (coverHeight / (float) coverWidth)));
+
+        final ViewGroup.LayoutParams lp = holder.image.getLayoutParams();
+        if (lp != null) {
+            lp.width = widthPx;
+            lp.height = heightPx;
+            holder.image.setLayoutParams(lp);
+        }
+        holder.image.setPadding(0, 0, 0, 0);
+        holder.image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        holder.image.clearColorFilter();
+
+        final boolean eligible = !isGoUp && !isVirtual && !isFile && folder != null && folder.isDirectory();
+        if (!eligible) {
+            holder.image.setTag(null);
+            holder.image.setImageDrawable(null);
+            return;
+        }
+
+        final File coverFile = new File(folder, settings.getGridCoverImageFilename());
+        holder.image.setTag(coverFile.getAbsolutePath());
+        if (!coverFile.isFile()) {
+            holder.image.setImageResource(R.drawable.book_default_cover);
+            return;
+        }
+
+        final String cacheKey = coverFile.getAbsolutePath() + ":" + coverFile.lastModified() + ":" + widthPx + "x" + heightPx;
+        final Bitmap cached = _coverImageCache.get(cacheKey);
+        if (cached != null) {
+            setBookListCoverBitmap(holder, cached);
+            return;
+        }
+
+        holder.image.setImageResource(R.drawable.book_default_cover);
+        try {
+            executorService.execute(() -> {
+                final Bitmap bmp = GsContextUtils.instance.loadImageFromFilesystem(coverFile, Math.max(widthPx, heightPx));
+                if (bmp != null) {
+                    _coverImageCache.put(cacheKey, bmp);
+                }
+                holder.image.post(() -> {
+                    if (bmp != null && coverFile.getAbsolutePath().equals(holder.image.getTag())) {
+                        setBookListCoverBitmap(holder, bmp);
+                    }
+                });
+            });
+        } catch (RejectedExecutionException ignored) {
+            // Keep the default cover when the small shared decode pool is temporarily full.
+        }
+    }
+
+    private void setBookListCoverBitmap(final FilesystemViewerViewHolder holder, final Bitmap bmp) {
+        holder.image.clearColorFilter();
+        holder.image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        holder.image.setPadding(0, 0, 0, 0);
+        holder.image.setImageBitmap(bmp);
+    }
+
+    private void showBookDefaultCover(final FilesystemViewerViewHolder holder, final int wPx, final int hPx) {
+        holder.image.clearColorFilter();
+        holder.image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        holder.image.setPadding(0, 0, 0, 0);
+        holder.image.setImageResource(R.drawable.book_default_cover);
+        holder.imageFrame.setTag(R.id.opoc_filesystem_item__image_frame, "cover");
     }
 
     private void setImageContainerSize(final FilesystemViewerViewHolder holder, final int wPx, final int hPx) {
@@ -997,7 +1109,7 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
 
         if (isSelected) {
             holder.imageFrame.setForeground(buildGridCellDrawable(
-                    0x33F04B4B, ContextCompat.getColor(_context, R.color.accent), markStrokeWidthPx, radiusPx));
+                    (0x33000000 | (getAccentColor() & 0x00FFFFFF)), getAccentColor(), markStrokeWidthPx, radiusPx));
         } else {
             holder.imageFrame.setForeground(null);
         }
@@ -1019,16 +1131,15 @@ public class GsFileBrowserListAdapter extends RecyclerView.Adapter<GsFileBrowser
                         ? ((TagContainer) holder.itemRoot.getTag()).file : null);
         if (selected) {
             holder.imageFrame.setForeground(buildGridCellDrawable(
-                    0x33F04B4B, ContextCompat.getColor(_context, R.color.accent), markStrokeWidthPx, radiusPx));
+                    (0x33000000 | (getAccentColor() & 0x00FFFFFF)), getAccentColor(), markStrokeWidthPx, radiusPx));
         } else if (hovered) {
             holder.imageFrame.setForeground(buildGridCellDrawable(
-                    0x12000000, ContextCompat.getColor(_context, R.color.accent), Math.max(1, markStrokeWidthPx / 3), radiusPx));
+                    (0x12000000 | (getAccentColor() & 0x00FFFFFF)), getAccentColor(), Math.max(1, markStrokeWidthPx / 3), radiusPx));
         } else {
             holder.imageFrame.setForeground(null);
         }
 
-        holder.title.setTextColor(ContextCompat.getColor(
-                _context, hovered ? _dopt.accentColor : _dopt.primaryTextColor));
+        holder.title.setTextColor(hovered ? getAccentColor() : getPrimaryTextColor());
     }
 
     private void animateFolderContent(final int direction) {

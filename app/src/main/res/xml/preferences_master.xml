@@ -89,6 +89,34 @@
         </PreferenceCategory>
 
 
+        <PreferenceCategory android:title="@string/ui_colors">
+            <com.rarepebble.colorpicker.ColorPreference
+                android:defaultValue="@color/background"
+                android:icon="@drawable/ic_palette_black_24dp"
+                android:key="@string/pref_key__ui_color_background"
+                android:title="@string/ui_color_background" />
+            <com.rarepebble.colorpicker.ColorPreference
+                android:defaultValue="@color/primary"
+                android:icon="@drawable/ic_palette_black_24dp"
+                android:key="@string/pref_key__ui_color_primary"
+                android:title="@string/ui_color_primary" />
+            <com.rarepebble.colorpicker.ColorPreference
+                android:defaultValue="@color/accent"
+                android:icon="@drawable/ic_palette_black_24dp"
+                android:key="@string/pref_key__ui_color_accent"
+                android:title="@string/ui_color_accent" />
+            <com.rarepebble.colorpicker.ColorPreference
+                android:defaultValue="@color/primary_text"
+                android:icon="@drawable/ic_palette_black_24dp"
+                android:key="@string/pref_key__ui_color_primary_text"
+                android:title="@string/ui_color_primary_text" />
+            <com.rarepebble.colorpicker.ColorPreference
+                android:defaultValue="@color/secondary_text"
+                android:icon="@drawable/ic_palette_black_24dp"
+                android:key="@string/pref_key__ui_color_secondary_text"
+                android:title="@string/ui_color_secondary_text" />
+        </PreferenceCategory>
+
         <PreferenceCategory android:title="@string/book_settings">
             <CheckBoxPreference
                 android:defaultValue="true"

@@ -130,6 +130,13 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
         _bookPathTabs = root.findViewById(R.id.book_path_tabs);
         _cu = new MarkorContextUtils(activity);
         _appSettings = AppSettings.get(activity);
+        final int uiBackground = _appSettings.getUiBackgroundColor() != 0
+                ? _appSettings.getUiBackgroundColor()
+                : ContextCompat.getColor(activity, R.color.background);
+        root.setBackgroundColor(uiBackground);
+        _emptyHint.setTextColor(_appSettings.getUiPrimaryTextColor() != 0
+                ? _appSettings.getUiPrimaryTextColor()
+                : ContextCompat.getColor(activity, R.color.primary_text));
 
         if (!(getActivity() instanceof FilesystemFragmentOptionsListener)) {
             throw new RuntimeException("Error: " + activity.getClass().getName() + " doesn't implement FilesystemFragmentOptionsListener");
@@ -150,6 +157,7 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
             _dopt.viewMode = _appSettings.getBookViewMode();
             _dopt.viewModeIsFolderLocal = false;
             if (_bookPathTabs != null) {
+                _bookPathTabs.setBackgroundColor(uiBackground);
                 _bookPathTabs.setVisibility(View.VISIBLE);
                 ((android.view.ViewGroup.MarginLayoutParams) _swipe.getLayoutParams()).topMargin =
                         (int) (48 * getResources().getDisplayMetrics().density);
@@ -326,7 +334,7 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
         for (final File folder : chain) {
             TextView tab = new TextView(requireContext());
             tab.setText(folder.equals(_dopt.rootFolder) ? getString(R.string.book) : folder.getName());
-            tab.setTextColor(ContextCompat.getColor(requireContext(), R.color.primary_text));
+            tab.setTextColor(_appSettings.getUiPrimaryTextColor() != 0 ? _appSettings.getUiPrimaryTextColor() : ContextCompat.getColor(requireContext(), R.color.primary_text));
             tab.setTextSize(14);
             tab.setGravity(android.view.Gravity.CENTER);
             tab.setPadding(18, 0, 18, 0);
@@ -467,7 +475,7 @@ private void updateMenuItems() {
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
         super.onCreateOptionsMenu(menu, inflater);
         inflater.inflate(R.menu.filesystem__menu, menu);
-        _cu.tintMenuItems(menu, true, _cu.rcolor(getContext(), R.color.dark__primary_text));
+        _cu.tintMenuItems(menu, true, _appSettings.getUiPrimaryTextColor() != 0 ? _appSettings.getUiPrimaryTextColor() : _cu.rcolor(getContext(), R.color.dark__primary_text));
         _cu.setSubMenuIconsVisibility(menu, true);
 
         List<Pair<File, String>> sdcardFolders = _cu.getAppDataPublicDirs(getContext(), false, true, true);

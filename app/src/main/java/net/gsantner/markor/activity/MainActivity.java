@@ -12,6 +12,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -116,6 +117,7 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
         });
 
         setSupportActionBar(findViewById(R.id.toolbar));
+        applyUiColors();
         optShowRate();
 
         // Setup viewpager
@@ -162,6 +164,43 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
         }
     }
 
+    private void applyUiColors() {
+        final int primary = _appSettings.getUiPrimaryColor() != 0
+                ? _appSettings.getUiPrimaryColor() : ContextCompat.getColor(this, R.color.primary);
+        final int accent = _appSettings.getUiAccentColor() != 0
+                ? _appSettings.getUiAccentColor() : ContextCompat.getColor(this, R.color.accent);
+        final int background = _appSettings.getUiBackgroundColor() != 0
+                ? _appSettings.getUiBackgroundColor() : ContextCompat.getColor(this, R.color.background);
+        final int primaryText = _appSettings.getUiPrimaryTextColor() != 0
+                ? _appSettings.getUiPrimaryTextColor() : ContextCompat.getColor(this, R.color.primary_text);
+        final int secondaryText = _appSettings.getUiSecondaryTextColor() != 0
+                ? _appSettings.getUiSecondaryTextColor() : ContextCompat.getColor(this, R.color.secondary_text);
+
+        final View root = findViewById(R.id.main_content);
+        if (root != null) root.setBackgroundColor(background);
+        final androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
+        if (toolbar != null) {
+            toolbar.setBackgroundColor(primary);
+            toolbar.setTitleTextColor(primaryText);
+            toolbar.setSubtitleTextColor(secondaryText);
+        }
+        if (_bottomNav != null) {
+            _bottomNav.setBackgroundColor(primary);
+            _bottomNav.setItemBackgroundColor(primary);
+            final int[][] states = new int[][]{
+                    new int[]{android.R.attr.state_checked},
+                    new int[]{}
+            };
+            final int[] colors = new int[]{accent, primaryText};
+            final ColorStateList tint = new ColorStateList(states, colors);
+            _bottomNav.setItemIconTintList(tint);
+            _bottomNav.setItemTextColor(tint);
+        }
+        if (_fab != null) {
+            _fab.setBackgroundTintList(ColorStateList.valueOf(accent));
+        }
+    }
+
     @Override
     public void onActivityFirstTimeVisible() {
         super.onActivityFirstTimeVisible();
@@ -174,7 +213,8 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
 
     @Override
     public Integer getNewNavigationBarColor() {
-        return ContextCompat.getColor(this, R.color.primary);
+        final int configured = _appSettings.getUiPrimaryColor();
+        return configured != 0 ? configured : ContextCompat.getColor(this, R.color.primary);
     }
 
     @Override
@@ -300,7 +340,10 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
         getMenuInflater().inflate(R.menu.main__menu, menu);
         menu.findItem(R.id.action_settings).setVisible(_appSettings.isShowSettingsOptionInMainToolbar());
 
-        _cu.tintMenuItems(menu, true, _cu.rcolor(this, R.color.dark__primary_text));
+        final int menuTextColor = _appSettings.getUiPrimaryTextColor() != 0
+                ? _appSettings.getUiPrimaryTextColor()
+                : _cu.rcolor(this, R.color.dark__primary_text);
+        _cu.tintMenuItems(menu, true, menuTextColor);
         _cu.setSubMenuIconsVisibility(menu, true);
         return true;
     }

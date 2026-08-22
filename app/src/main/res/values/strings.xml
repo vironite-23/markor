@@ -554,6 +554,14 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="folder_local">Folder local</string>
 
     <string name="book">Book</string>
+    <string name="ui_colors">UI colors</string>
+    <string name="ui_colors_summary">Customize the app interface without changing the editor page colors</string>
+    <string name="ui_color_background">UI background</string>
+    <string name="ui_color_primary">UI primary</string>
+    <string name="ui_color_accent">UI accent</string>
+    <string name="ui_color_primary_text">UI primary text</string>
+    <string name="ui_color_secondary_text">UI secondary text</string>
+
     <string name="book_settings">Book</string>
     <string name="book_tab_enabled">Show Book tab</string>
     <string name="book_tab_enabled_summary">Show the Book tab before File</string>

@@ -87,6 +87,28 @@ public class AppSettings extends GsSharedPreferencesPropertyBackend {
         return getBool(R.string.pref_key__book_tab_enabled, true);
     }
 
+    /** UI colors are independent from the editor's basic color scheme. A value of 0 means
+     *  no UI override is configured and the normal Markor theme color is used. */
+    public int getUiBackgroundColor() {
+        return getInt(R.string.pref_key__ui_color_background, 0);
+    }
+
+    public int getUiPrimaryColor() {
+        return getInt(R.string.pref_key__ui_color_primary, 0);
+    }
+
+    public int getUiAccentColor() {
+        return getInt(R.string.pref_key__ui_color_accent, 0);
+    }
+
+    public int getUiPrimaryTextColor() {
+        return getInt(R.string.pref_key__ui_color_primary_text, 0);
+    }
+
+    public int getUiSecondaryTextColor() {
+        return getInt(R.string.pref_key__ui_color_secondary_text, 0);
+    }
+
     public GsFileBrowserOptions.FileBrowserViewMode getBookViewMode() {
         return GsFileBrowserOptions.FileBrowserViewMode.fromString(
                 getString(R.string.pref_key__book_view_mode, GsFileBrowserOptions.FileBrowserViewMode.GRID.name()));

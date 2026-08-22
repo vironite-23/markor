@@ -251,6 +251,16 @@ public class SettingsActivity extends MarkorBaseActivity {
                 } catch (IllegalArgumentException e) {
                     Toast.makeText(context, e.getLocalizedMessage() + "\n\n" + getString(R.string.loading_default_value), Toast.LENGTH_SHORT).show();
                 }
+            } else if (eq(key,
+                    R.string.pref_key__ui_color_background,
+                    R.string.pref_key__ui_color_primary,
+                    R.string.pref_key__ui_color_accent,
+                    R.string.pref_key__ui_color_primary_text,
+                    R.string.pref_key__ui_color_secondary_text)) {
+                // UI colors are applied by MainActivity, so restart that activity when settings
+                // change. The editor's basic color scheme is intentionally not touched.
+                _appSettings.setRecreateMainRequired(true);
+                activityRetVal = RESULT.RESTART_REQ;
             } else if (eq(key, R.string.pref_key__notebook_directory, R.string.pref_key__quicknote_filepath, R.string.pref_key__todo_filepath)) {
                 WrMarkorWidgetProvider.updateLauncherWidgets();
                 TodoWidgetProvider.updateTodoWidgets();

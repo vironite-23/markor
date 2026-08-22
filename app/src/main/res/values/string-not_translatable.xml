@@ -408,6 +408,11 @@ work. If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
     <string name="pref_key__new_file_dialog_lastused_type" translatable="false">pref_key__new_file_dialog_lastused_type</string>
     <string name="pref_key__file_browser_last_browsed_folder" translatable="false">pref_key__file_browser_last_browsed_folder</string>
     <string name="pref_key__file_description_format" translatable="false">pref_key__file_description_format</string>
+    <string name="pref_key__ui_color_background" translatable="false">ui_color_background</string>
+    <string name="pref_key__ui_color_primary" translatable="false">ui_color_primary</string>
+    <string name="pref_key__ui_color_accent" translatable="false">ui_color_accent</string>
+    <string name="pref_key__ui_color_primary_text" translatable="false">ui_color_primary_text</string>
+    <string name="pref_key__ui_color_secondary_text" translatable="false">ui_color_secondary_text</string>
     <string name="pref_key__grid_cover_filename" translatable="false">pref_key__grid_cover_filename</string>
     <string name="pref_key__grid_cover_width_dp" translatable="false">pref_key__grid_cover_width_dp</string>
     <string name="pref_key__grid_cover_height_dp" translatable="false">pref_key__grid_cover_height_dp</string>
