@@ -108,7 +108,7 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
     private MarkorContextUtils _cu;
     private Toolbar _toolbar;
     private boolean _bookMode;
-    private LinearLayout _bookPathTabs;
+    private HorizontalScrollView _bookPathTabs;
     private boolean _reloadRequiredOnResume = true;
     private RecyclerView.ItemDecoration _fileListDivider;
 
@@ -144,7 +144,7 @@ public class GsFileBrowserFragment extends GsFragmentBase<GsSharedPreferencesPro
         _bookMode = getArguments() != null && getArguments().getBoolean("book_mode", false);
         // Passing a marker Options instance lets MainActivity create an independent option set
         // for Book instead of sharing the Notebook option object.
-        GsFileBrowserOptions requestedOptions = _bookMode ? new GsFileBrowserOptions.Options() : _dopt;
+        GsFileBrowserOptions.Options requestedOptions = _bookMode ? new GsFileBrowserOptions.Options() : _dopt;
         if (_bookMode) requestedOptions.requestBookOptions = true;
         setDialogOptions(((FilesystemFragmentOptionsListener) activity).getFilesystemFragmentOptions(requestedOptions));
         if (_bookMode) {

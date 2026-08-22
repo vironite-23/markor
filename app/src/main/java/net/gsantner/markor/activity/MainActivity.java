@@ -186,7 +186,6 @@ public class MainActivity extends MarkorBaseActivity implements GsFileBrowserFra
         }
         if (_bottomNav != null) {
             _bottomNav.setBackgroundColor(primary);
-            _bottomNav.setItemBackgroundColor(primary);
             final int[][] states = new int[][]{
                     new int[]{android.R.attr.state_checked},
                     new int[]{}
